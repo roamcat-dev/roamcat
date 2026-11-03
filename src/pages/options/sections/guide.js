@@ -20,16 +20,16 @@ export const guideSection = html`
     <h2 id="guide-heading" class="sr-only">${t('sec.guide.title')}</h2>
     <p>${t('sec.guide.intro')}</p>
   </div>
-  <article class="paper-card guide-start welcome-revisit-banner" style="background: linear-gradient(135deg, var(--color-amber-soft), var(--color-brand-green-soft)); border: 1px solid var(--color-brand-green-border); margin-bottom: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+  <article class="paper-card guide-start welcome-revisit-banner guide-onboard">
+    <div class="guide-onboard-row">
       <div>
-        <span class="guide-eyebrow" style="color: var(--color-brand-green); font-weight: 700;">${t('sec.guide.onboardEyebrow')}</span>
-        <h3 style="margin: 4px 0 6px 0;">${t('sec.guide.onboardTitle')}</h3>
-        <p style="margin: 0; color: var(--color-text-secondary, #94a3b8); font-size: var(--fs-3, 14px);">${t('sec.guide.onboardDesc')}</p>
+        <span class="guide-eyebrow">${t('sec.guide.onboardEyebrow')}</span>
+        <h3>${t('sec.guide.onboardTitle')}</h3>
+        <p>${t('sec.guide.onboardDesc')}</p>
       </div>
-      <button type="button" class="js-open-welcome primary-action" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: var(--radius-pill); font-weight: 600; font-size: var(--fs-2, 13px); cursor: pointer;">
+      <button type="button" class="js-open-welcome primary-action guide-onboard-btn">
         <span>${t('sec.guide.onboardBtn')}</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
       </button>
     </div>
   </article>
@@ -37,7 +37,7 @@ export const guideSection = html`
     <span class="guide-eyebrow">${t('sec.guide.guideEyebrow')}</span>
     <h3>${t('sec.guide.lede')}</h3>
     <p><strong>${t('sec.guide.ledeA')}</strong>${t('sec.guide.ledeDesc1')}<strong>${t('sec.guide.ledeB')}</strong>${t('sec.guide.ledeDesc2')}</p>
-    <p>${t('sec.guide.firstUse1')}<a href="#service">${t('opt.nav.model')}</a>${t('sec.guide.firstUse2')}<a href="#sites">${t('opt.nav.sites')}</a>${t('sec.guide.firstUse3')}</p>
+    <p>${t('sec.guide.firstUse1')}<a href="#service">${t('opt.group5.service')}</a>${t('sec.guide.firstUse2')}<a href="#sites">${t('opt.nav.sites')}</a>${t('sec.guide.firstUse3')}</p>
     <p>${t('sec.guide.keysLinkA')}<a href="#shortcuts">${t('opt.nav.shortcuts')}</a>${t('sec.guide.keysLinkB')}</p>
   </article>
 
@@ -51,7 +51,7 @@ export const guideSection = html`
     </figure>
     <ol class="guide-list">
       <li><strong>${t('sec.guide.liLookup')}</strong>${t('sec.guide.liLookupA')}<kbd data-lookup-key>D</kbd>${t('sec.guide.liLookupB')}</li>
-      <li><strong>${t('sec.guide.liStyle')}</strong>${t('sec.guide.liStyleA')}<a href="#assistance">${t('opt.nav.assist')}</a>${t('sec.guide.liStyleB')}</li>
+      <li><strong>${t('sec.guide.liStyle')}</strong>${t('sec.guide.liStyleA')}<a href="#assistance">${t('opt.tab.lookup')}</a>${t('sec.guide.liStyleB')}</li>
       <li><strong>${t('sec.guide.liMore')}</strong>${t('sec.guide.liMoreDesc')}</li>
     </ol>
     <p>${t('sec.guide.autoHint')}</p>
@@ -59,7 +59,7 @@ export const guideSection = html`
       <summary>${t('sec.guide.faqMark')}</summary>
       <div>
         <p>${t('sec.guide.faqMarkA')}<strong>${t('sec.guide.faqMarkB')}</strong>${t('sec.guide.faqMarkC')}<strong>${t('sec.guide.faqMarkD')}</strong>${t('sec.guide.faqMarkE')}</p>
-        <p>${t('sec.guide.faqRefA')}<a href="#appearance">${t('opt.nav.appearance')}</a>${t('sec.guide.faqRefB')}</p>
+        <p>${t('sec.guide.faqRefA')}<a href="#appearance">${t('opt.tab.structure')}</a>${t('sec.guide.faqRefB')}</p>
       </div>
     </details>
   </article>
@@ -79,7 +79,7 @@ export const guideSection = html`
     <ol class="guide-list">
       <li><strong>${t('sec.guide.liEnable')}</strong>${t('sec.guide.liEnableDesc')}</li>
       <li><strong>${t('sec.guide.liRead')}</strong>${t('sec.guide.liReadDesc')}</li>
-      <li><strong>${t('sec.guide.liDensity')}</strong>${t('sec.guide.liDensityA')}<a href="#appearance">${t('opt.nav.appearance')}</a>${t('sec.guide.liDensityB')}</li>
+      <li><strong>${t('sec.guide.liDensity')}</strong>${t('sec.guide.liDensityA')}<a href="#appearance">${t('opt.tab.structure')}</a>${t('sec.guide.liDensityB')}</li>
     </ol>
     <p><strong>${t('sec.guide.notWords')}</strong>${t('sec.guide.notWordsDesc')}</p>
   </article>
@@ -103,10 +103,10 @@ export const guideSection = html`
               <animate attributeName="stroke-dashoffset" from="54" to="0" dur="2.2s" repeatCount="indefinite"></animate>
             </path>
           </svg>
-          <span class="rail-station" style="left:12.5%;"></span>
-          <span class="rail-station" style="left:37.5%;opacity:0.75;"></span>
-          <span class="rail-station" style="left:62.5%;opacity:0.55;"></span>
-          <span class="rail-station" style="left:87.5%;"></span>
+          <span class="rail-station"></span>
+          <span class="rail-station"></span>
+          <span class="rail-station"></span>
+          <span class="rail-station"></span>
         </div>
         <div class="circuit-track-container">
           <div class="circuit-node node-stage-1" title="${t('sec.guide.n1Title')}">
@@ -116,13 +116,13 @@ export const guideSection = html`
             <div class="node-metric-pill">${t('sec.guide.n1Pill')}</div>
           </div>
           <div class="circuit-node node-stage-2" title="${t('sec.guide.n2Title')}">
-            <div class="node-pin-row"><span class="node-pulse-dot" style="opacity:0.8;"></span><span class="node-step-id">${t('sec.guide.n2Step')}</span></div>
+            <div class="node-pin-row"><span class="node-pulse-dot"></span><span class="node-step-id">${t('sec.guide.n2Step')}</span></div>
             <div class="node-name">${t('sec.guide.n2Name')}</div>
             <div class="node-desc">${t('sec.guide.n2Desc')}</div>
             <div class="node-metric-pill">${t('sec.guide.n2Pill')}</div>
           </div>
           <div class="circuit-node node-stage-3" title="${t('sec.guide.n3Title')}">
-            <div class="node-pin-row"><span class="node-pulse-dot" style="opacity:0.6;"></span><span class="node-step-id">${t('sec.guide.n3Step')}</span></div>
+            <div class="node-pin-row"><span class="node-pulse-dot"></span><span class="node-step-id">${t('sec.guide.n3Step')}</span></div>
             <div class="node-name">${t('sec.guide.n3Name')}</div>
             <div class="node-desc">${t('sec.guide.n3Desc')}</div>
             <div class="node-metric-pill">${t('sec.guide.n3Pill')}</div>
@@ -145,7 +145,7 @@ export const guideSection = html`
       <dl class="guide-definitions">
         <div><dt>${t('sec.guide.knownQ')}</dt><dd>${t('sec.guide.knownA1')}<a href="#personalization">${t('sec.guide.knownLink')}</a>${t('sec.guide.knownA2')}</dd></div>
         <div><dt>${t('sec.guide.quietQ')}</dt><dd>${t('sec.guide.quietA')}</dd></div>
-        <div><dt>${t('sec.guide.manualQ')}</dt><dd>${t('sec.guide.manualA1')}<a href="#assistance">${t('opt.nav.assist')}</a>${t('sec.guide.manualA2')}</dd></div>
+        <div><dt>${t('sec.guide.manualQ')}</dt><dd>${t('sec.guide.manualA1')}<a href="#assistance">${t('opt.tab.lookup')}</a>${t('sec.guide.manualA2')}</dd></div>
       </dl>
       <details class="guide-note">
         <summary>${t('sec.guide.fadeQ')}</summary>

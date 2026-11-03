@@ -19,15 +19,13 @@ import {VIDEO_SUPPORT_ENABLED} from '@ext/activation.js';
 import {serviceCatalog, isMtKey} from '@ext/ui/options-service-catalog.js';
 import {createMtPanel} from './options-mt.js';
 
-const optionsSections = ['assistance','appearance','sites','service','terms','personalization','history','privacy','shortcuts','guide','diagnostics'];
 const T=(k,v)=>globalThis.RoamCatI18n?.t(k,v)??k;
-const optionsLabels = {assistance:'opt.nav.assist',appearance:'opt.nav.appearance',sites:'opt.nav.sites',terms:'opt.nav.terms',personalization:'opt.nav.personalization',history:'opt.nav.history',privacy:'opt.nav.privacy',service:'opt.nav.model',diagnostics:'opt.nav.diagnostics',shortcuts:'opt.nav.shortcuts',guide:'opt.nav.guide'};
 const optionsSourceLabels = {personalized:'src.personalized',manual:'src.manual','site-user':'src.site-user',global:'src.global','site-built-in':'src.site-built-in','local-model':'src.local-model',chatgpt:'src.chatgpt',grok:'src.grok',antigravity:'src.antigravity',api:'src.api',jev:'src.jev',general:'src.general'};
 const diagnosticOperationLabels = {PAGE_SUMMARY:'diag.op.PAGE_SUMMARY',SENTENCE_GROUPS_BATCH:'diag.op.SENTENCE_GROUPS_BATCH',HISTORY_SUMMARY:'diag.op.HISTORY_SUMMARY',PERSONALIZATION_ANALYZE:'diag.op.PERSONALIZATION_ANALYZE',ASSIST_COMMIT:'diag.op.ASSIST_COMMIT',ASSIST:'diag.op.ASSIST',SUPPORT_BATCH:'diag.op.SUPPORT_BATCH',PASSAGE_TRANSLATE:'diag.op.PASSAGE_TRANSLATE',EMERGENCY_TRANSLATE:'diag.op.EMERGENCY_TRANSLATE',RESOLVE_DOMAIN:'diag.op.RESOLVE_DOMAIN',PROVIDER_TEST:'diag.op.PROVIDER_TEST',CONNECTION:'diag.op.CONNECTION',ANALYZE:'diag.op.ANALYZE',PREPARED_ASSIST:'diag.op.PREPARED_ASSIST',PREPARED_SUPPORT:'diag.op.PREPARED_SUPPORT'};
 const diagnosticStageLabels = {request:'diag.stage.request',provider:'diag.stage.provider',first_content:'diag.stage.first_content',validation:'diag.stage.validation',render:'diag.stage.render',connection:'diag.stage.connection',rpc:'diag.stage.rpc',stderr:'diag.stage.stderr'};
 const diagnosticStatusLabels = {start:'diag.status.start',ok:'diag.status.ok',error:'diag.status.error',cancelled:'diag.status.cancelled'};
 const diagnosticCodeLabels = {STARTUP_FAILED:'diag.code.STARTUP_FAILED',CODEX_EXIT:'diag.code.CODEX_EXIT',RPC_TIMEOUT:'diag.code.RPC_TIMEOUT',TURN_FAILED:'diag.code.TURN_FAILED',UNKNOWN:'diag.code.UNKNOWN',OK:'diag.code.OK',LOCAL_RESULT:'diag.code.LOCAL_RESULT',CACHE_HIT:'diag.code.CACHE_HIT',TIMEOUT:'diag.code.TIMEOUT',NETWORK:'diag.code.NETWORK',AUTH:'diag.code.AUTH',QUOTA:'diag.code.QUOTA',RATE_LIMIT:'diag.code.RATE_LIMIT',HTTP:'diag.code.HTTP',JSON_INVALID:'diag.code.JSON_INVALID',OUTPUT_INVALID:'diag.code.OUTPUT_INVALID',BATCH_SHAPE:'diag.code.BATCH_SHAPE',BATCH_COUNT:'diag.code.BATCH_COUNT',ITEM_FIELDS:'diag.code.ITEM_FIELDS',ITEM_ID:'diag.code.ITEM_ID',ITEM_DUPLICATE:'diag.code.ITEM_DUPLICATE',TRANSLATION_TYPE:'diag.code.TRANSLATION_TYPE',TRANSLATION_EMPTY:'diag.code.TRANSLATION_EMPTY',TRANSLATION_WHITESPACE:'diag.code.TRANSLATION_WHITESPACE',TRANSLATION_LENGTH:'diag.code.TRANSLATION_LENGTH',TRANSLATION_NO_HAN:'diag.code.TRANSLATION_NO_HAN',STALE:'diag.code.STALE',CANCELLED:'diag.code.CANCELLED',NOT_READY:'diag.code.NOT_READY',DISCONNECTED:'diag.code.DISCONNECTED',NATIVE_START:'diag.code.NATIVE_START',NATIVE_EXIT:'diag.code.NATIVE_EXIT',NATIVE_RPC:'diag.code.NATIVE_RPC',NATIVE_STDERR:'diag.code.NATIVE_STDERR',STDERR_AUTH:'diag.code.STDERR_AUTH',STDERR_RATE_LIMIT:'diag.code.STDERR_RATE_LIMIT',STDERR_TIMEOUT:'diag.code.STDERR_TIMEOUT',STDERR_UNKNOWN:'diag.code.STDERR_UNKNOWN',STORAGE_ERROR:'diag.code.STORAGE_ERROR',RENDER_INVALID:'diag.code.RENDER_INVALID',NOT_DISPLAYED:'diag.code.NOT_DISPLAYED',INTERRUPTED:'diag.code.INTERRUPTED',SLOW_REQUEST:'diag.code.SLOW_REQUEST',REPEATED_FAILURE:'diag.code.REPEATED_FAILURE',SERVICE_AUTH:'diag.code.SERVICE_AUTH',MT_FALLBACK:'diag.code.MT_FALLBACK'};
-const optionsIds = ['section-title','save-state','global-error','reading-domain','lookup-key','automation-all-sites','automation-video-sites','automation-site-form','automation-site-origin','automation-result','automation-site-list','automation-site-empty','video-theme','video-bilingual','video-live-chat','video-karaoke','video-blur','video-reset-offset','video-offset-row','video-caption-preview','video-dictation-status','detection-chatgpt','detection-api','detection-jev','detection-jev-model','detection-jev-url','detection-jev-key','detection-jev-key-state','clear-detection-jev-key','detection-subscription-model','detection-use-translation-api','detection-api-model','detection-api-fields','detection-api-url','detection-api-key','detection-key-state','clear-detection-key','save-recognition','domain-test-text','run-domain-test','domain-test-result','domain-rule-form','rule-host','rule-path','rule-domain','rule-subdomains','domain-rule-result','domain-rule-list','domain-rule-empty','term-form','term-source','term-translation','term-domain','term-list','term-empty','subscription-panel','api-panel','subscription-dot','subscription-state','subscription-detail','refresh-subscription','subscription-account','subscription-email','subscription-plan','subscription-model','subscription-model-note','login-subscription','cancel-subscription','logout-subscription','test-subscription','subscription-result','subscription-user-code','install-command','install-prereq','install-note','copy-install-command','provider-form','provider-url','provider-concurrency','provider-model','provider-key','key-state','test-provider','disconnect-provider','provider-result','remember-support','export-data','clear-memory','data-result','open-extension-manager','help-language','api-service-select','new-api-service','provider-name','delete-api-service','cancel-api-service','api-routing','api-routing-empty','route-assist','route-support','route-groups','route-translate','route-summary','usage-stats-refresh','usage-stats-clear','usage-stats-totals','usage-stats-empty','usage-stats-wrap','usage-stats-body','usage-stats-result', 'reading-style-preview', 'reset-reading-style', 'diagnostics-storage-error','diagnostics-enabled','diagnostics-recording-note','diagnostics-native-dot','diagnostics-native-state','diagnostics-native-note','diagnostics-requests','diagnostics-failures','diagnostics-slow','diagnostics-pending','diagnostics-updated','diagnostics-issues','diagnostics-issues-empty','diagnostics-events','diagnostics-events-empty','export-diagnostics','clear-diagnostics','diagnostics-result','reload-extension'];
+const optionsIds = ['section-title','save-state','global-error','reading-domain','lookup-key','automation-all-sites','automation-video-sites','automation-site-form','automation-site-origin','automation-result','automation-site-list','automation-site-empty','video-theme','video-bilingual','video-live-chat','video-karaoke','video-blur','video-reset-offset','video-offset-row','video-caption-preview','video-dictation-status','detection-chatgpt','detection-api','detection-jev','detection-jev-model','detection-jev-url','detection-jev-key','detection-jev-key-state','clear-detection-jev-key','detection-subscription-model','detection-use-translation-api','detection-api-model','detection-api-fields','detection-api-url','detection-api-key','detection-key-state','clear-detection-key','save-recognition','domain-test-text','run-domain-test','domain-test-result','domain-rule-form','rule-host','rule-path','rule-domain','rule-subdomains','domain-rule-result','domain-rule-list','domain-rule-empty','term-form','term-source','term-translation','term-domain','term-list','term-empty','subscription-panel','api-panel','subscription-dot','subscription-state','subscription-detail','subscription-tech','subscription-tech-text','refresh-subscription','subscription-account','subscription-email','subscription-plan','subscription-model','subscription-model-note','login-subscription','cancel-subscription','logout-subscription','test-subscription','subscription-result','subscription-user-code','install-command','install-prereq','install-note','copy-install-command','provider-form','provider-url','provider-concurrency','provider-model','provider-key','key-state','test-provider','disconnect-provider','provider-result','remember-support','export-data','clear-memory','data-result','open-extension-manager','help-language','api-service-select','new-api-service','provider-name','delete-api-service','cancel-api-service','api-routing','api-routing-empty','route-assist','route-support','route-groups','route-translate','route-summary','usage-stats-refresh','usage-stats-clear','usage-stats-totals','usage-stats-empty','usage-stats-wrap','usage-stats-body','usage-stats-result', 'diagnostics-storage-error','diagnostics-enabled','diagnostics-recording-note','diagnostics-native-dot','diagnostics-native-state','diagnostics-native-note','diagnostics-requests','diagnostics-failures','diagnostics-slow','diagnostics-pending','diagnostics-updated','diagnostics-issues','diagnostics-issues-empty','diagnostics-events','diagnostics-events-empty','export-diagnostics','clear-diagnostics','diagnostics-result','reload-extension'];
 const optionsEls = Object.fromEntries(optionsIds.map(id => [id.replace(/-([a-z])/g,(_match,char)=>char.toUpperCase()),document.querySelector(`#${id}`)]));
 optionsEls.dataProblem = document.querySelector('#data-problem');
 Object.assign(optionsEls,Object.fromEntries(['provider-id','provider-key-link','provider-fields','provider-model-list','provider-model-note','list-provider-models'].map(id=>[id.replace(/-([a-z])/g,(_match,char)=>char.toUpperCase()),document.querySelector('#'+id)])));
@@ -70,9 +68,9 @@ let optionsDiagnosticsBusy = false;
 let optionsDiagnosticsSequence = 0;
 let optionsDiagnosticsTimer = 0;
 let optionsCurrentSection = '';
-let optionsAppearanceView='structure';
 for(const element of document.querySelectorAll('[data-video-feature]'))element.hidden=!VIDEO_SUPPORT_ENABLED;
-const optionsAppearanceTabs=[...document.querySelectorAll('[data-appearance-tab]')].filter(tab=>!tab.hidden);
+// 原词、词注、译文样式预览：查词与双语翻译分区各一份，data-layers 决定示例里画哪几层。
+const optionsReadingPreviews=[...document.querySelectorAll('iframe[data-reading-preview]')];
 // 「视频与直播」的分段选择：单选框组名 → settings.video 的键。
 const OPTIONS_VIDEO_DEFAULTS={fontSize:20,theme:'auto',bilingual:false,display:'bilingual',translationFirst:true,translationColor:'white',blur:false,offset:-1,karaoke:true,liveChat:false};
 const OPTIONS_VIDEO_CHOICES={'video-display':'display','video-translation-first':'translationFirst','video-translation-color':'translationColor','video-font-size':'fontSize'};
@@ -104,7 +102,8 @@ export function optionsSectionEnter(section,previous){
   }
   // 仅在真正进入「模型服务」区时才刷新连接器：查看其他设置不应拉起本机 CLI 进程。
   if(section==='service'&&optionsState){if(optionsProviderKind()!=='api')void optionsRefreshSubscription();}
-  if(section==='appearance')optionsRenderAppearance();
+  if(section==='appearance')optionsRenderStructurePreview();
+  if(section==='assistance'||section==='translation')optionsSizeStylePreview();
 }
 function optionsRenderModels(select,selected,note) { select.replaceChildren(new Option(T('ctl.connectorModel'),''));for(const model of optionsModels)select.append(new Option(model.name||model.id,model.id));select.value=[...select.options].some(option=>option.value===selected)?selected:'';note.textContent=optionsModels.length?T('ctl.modelsAvailable'):T('ctl.modelsConnect'); }
 function optionsParseOrigin(value) { const entered=value.trim();let parsed;try{parsed=new URL(entered);}catch{throw new Error(T('ctl.originInvalid'));}if(!['http:','https:'].includes(parsed.protocol)||parsed.username||parsed.password||parsed.pathname!=='/'||parsed.search||parsed.hash)throw new Error(T('ctl.originShape'));return parsed.origin; }
@@ -128,6 +127,8 @@ function optionsRenderTerms(){
   optionsEls.termEmpty.hidden=Boolean(terms.length);
 }
 function optionsSubscriptionLabel(kind){return kind==='grok'?'Grok':kind==='antigravity'?'Google':'ChatGPT';}
+// 连接器错误末尾带「（host_missing; 原因）」：设置页正文只留说明，代码收进「技术细节」；没装连接器时说明换成「按下方步骤安装」。
+function optionsSplitConnectorError(text){const match=/^(.*?)\s*[（(]([a-z_]+(?:;[^）)]*)?)[）)]\s*$/s.exec(String(text||''));if(!match)return [String(text||''),''];return [match[2].startsWith('host_missing')?T('ctl.subInstall'):match[1],match[2]];}
 function optionsRenderSubscription(){
   const kind=optionsSubscriptionKind(),label=optionsSubscriptionLabel(kind);
   const subscription=optionsState?.subscription||{};
@@ -143,6 +144,7 @@ function optionsRenderSubscription(){
   else{optionsEls.subscriptionState.textContent=T('ctl.subReady');optionsEls.subscriptionDetail.textContent=subscription.error||T('ctl.subReadyDetail');}
   // 连上后说明连接方式：本机常驻服务优先，浏览器连接器是回退。
   if(connected&&(subscription.transport==='service'||subscription.transport==='native'))optionsEls.subscriptionDetail.textContent+=T(subscription.transport==='service'?'ctl.viaService':'ctl.viaNative');
+  {const [main,code]=optionsSplitConnectorError(optionsEls.subscriptionDetail.textContent);optionsEls.subscriptionDetail.textContent=main;if(optionsEls.subscriptionTech){optionsEls.subscriptionTech.hidden=!code;optionsEls.subscriptionTechText.textContent=code;}}
   optionsRenderModels(optionsEls.subscriptionModel,optionsState?.settings?.subscriptionModel||'',optionsEls.subscriptionModelNote);
   optionsEls.loginSubscription.textContent=T('ctl.loginWith',{label});
   optionsEls.loginSubscription.hidden=!connected||authenticated||pending;
@@ -210,22 +212,31 @@ setInterval(()=>{
 function optionsReadingStyleValue(){return globalThis.RoamCatReadingStyle.validate(Object.fromEntries(optionsReadingLayers.map(layer=>{const controls=optionsReadingControls[layer];return[layer,{style:controls.style.value,color:controls.group.dataset.color||'auto',size:Number(controls.size.value)}];})));}
 let optionsReadingDraft=null,optionsReadingWrites=Promise.resolve();
 function optionsSaveReadingStyle(readingStyle,message=T('ctl.styleSaved')){optionsReadingDraft=readingStyle;optionsRenderReadingStyle();const save=async()=>{await optionsSavePatch({readingStyle},message);if(optionsReadingDraft===readingStyle){optionsReadingDraft=null;optionsRenderReadingStyle();}};optionsReadingWrites=optionsReadingWrites.then(save,save);return optionsReadingWrites;}
-let optionsReadingPreviewObserver=null;
-function optionsSizeStylePreview(){const doc=optionsEls.readingStylePreview.contentDocument;if(!doc?.body)return;const height=Math.ceil(doc.body.getBoundingClientRect().height),current=parseFloat(optionsEls.readingStylePreview.style.height)||0;if(current!==height)optionsEls.readingStylePreview.style.height=height+'px';}
-function optionsObserveStylePreview(){optionsReadingPreviewObserver?.disconnect();const body=optionsEls.readingStylePreview.contentDocument?.body;if(!body)return;optionsReadingPreviewObserver=new ResizeObserver(optionsSizeStylePreview);optionsReadingPreviewObserver.observe(body);optionsSizeStylePreview();}
+function optionsSizeOnePreview(frame){const doc=frame.contentDocument;if(!doc?.body)return;const height=Math.ceil(doc.body.getBoundingClientRect().height);if(!height)return;const current=parseFloat(frame.style.height)||0;if(current!==height)frame.style.height=height+'px';}
+function optionsSizeStylePreview(){for(const frame of optionsReadingPreviews)optionsSizeOnePreview(frame);}
+const optionsReadingPreviewObservers=new Map();
+function optionsObserveStylePreview(frame){optionsReadingPreviewObservers.get(frame)?.disconnect();const body=frame.contentDocument?.body;if(!body)return;const observer=new ResizeObserver(()=>optionsSizeOnePreview(frame));optionsReadingPreviewObservers.set(frame,observer);observer.observe(body);optionsSizeOnePreview(frame);}
 function optionsBuildReadingPalettes(){
   for(const layer of optionsReadingLayers){const container=optionsReadingControls[layer].palette;if(container.childElementCount)continue;const choices=[{id:'auto',label:T('ctl.followPage'),color:''},...globalThis.RoamCatReadingStyle.palettes];for(const choice of choices){const button=document.createElement('button');button.type='button';button.className='reading-color-option';button.dataset.color=choice.id==='auto'?'auto':choice.color;button.setAttribute('aria-label',T('ctl.colorAria',{label:choice.label}));button.setAttribute('aria-pressed','false');const swatch=document.createElement('span');swatch.className='reading-color-swatch';swatch.setAttribute('aria-hidden','true');if(choice.id==='auto')swatch.dataset.auto='true';else swatch.style.setProperty('--swatch-color',choice.color);const label=document.createElement('span');label.textContent=choice.label;button.append(swatch,label);container.append(button);}}
 }
 function optionsUpdateReadingColorUI(layer){const controls=optionsReadingControls[layer],selected=controls.group.dataset.color||'auto';let preset=false;for(const button of controls.palette.querySelectorAll('button')){const active=button.dataset.color.toLowerCase()===selected.toLowerCase();button.classList.toggle('selected',active);button.setAttribute('aria-pressed',String(active));preset||=active;}controls.color.closest('.reading-custom-color').classList.toggle('selected',!preset);}
+function optionsPreviewDocument(layers){
+  const sentence=layers.includes('annotation')||layers.includes('original')
+    ?'<p>The model uses <span id="preview-annotation" data-roamcat-annotation="'+T('ctl.prevHint')+'"><span id="preview-word">reasoning</span><span id="preview-hint" lang="zh-CN">'+T('ctl.prevHint')+'</span></span> to compare possible answers.</p>'
+    :'<p>The model uses reasoning to compare possible answers.</p>';
+  return sentence+(layers.includes('translation')?'<div id="preview-translation" lang="zh-CN"><p>'+T('ctl.prevTrans')+'</p></div>':'');
+}
 function optionsPreviewReadingStyle(value){
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || (document.documentElement.getAttribute('data-theme') !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
   const theme = isDark ? 'dark' : 'light';
-  const css=globalThis.RoamCatDesign.cssFor(':root', theme)+'body{margin:0;padding:16px;font:var(--fs-4, 16px)/1.65 var(--sans);color:var(--ink);background:var(--paper);overflow-wrap:anywhere}p{margin:0 0 12px}'+globalThis.RoamCatReadingStyle.css(value,{mark:'#preview-word',hint:'#preview-hint',block:'#preview-translation',annotation:'#preview-annotation'});
-  const doc=optionsEls.readingStylePreview.contentDocument;
-  if(doc?.documentElement)doc.documentElement.setAttribute('data-theme',theme);
-  const existing=doc?.getElementById('preview-style');
-  if(existing){existing.textContent=css;optionsSizeStylePreview();return;}
-  optionsEls.readingStylePreview.srcdoc='<!doctype html><html lang="en" data-theme="'+theme+'"><meta charset="utf-8"><style id="preview-style">'+css+'</style><body><p>The model uses <span id="preview-annotation" data-roamcat-annotation="'+T('ctl.prevHint')+'"><span id="preview-word">reasoning</span><span id="preview-hint" lang="zh-CN">'+T('ctl.prevHint')+'</span></span> to compare possible answers.</p><div id="preview-translation" lang="zh-CN"><p>'+T('ctl.prevTrans')+'</p></div></body></html>';
+  const css=globalThis.RoamCatDesign.cssFor(':root', theme)+'body{margin:0;padding:16px;font:var(--fs-4, 16px)/1.65 var(--sans);color:var(--ink);background:var(--paper);overflow-wrap:anywhere}p{margin:0 0 12px}p:last-child{margin-bottom:0}'+globalThis.RoamCatReadingStyle.css(value,{mark:'#preview-word',hint:'#preview-hint',block:'#preview-translation',annotation:'#preview-annotation'});
+  for(const frame of optionsReadingPreviews){
+    const doc=frame.contentDocument;
+    if(doc?.documentElement)doc.documentElement.setAttribute('data-theme',theme);
+    const existing=doc?.getElementById('preview-style');
+    if(existing){existing.textContent=css;optionsSizeOnePreview(frame);continue;}
+    frame.srcdoc='<!doctype html><html lang="en" data-theme="'+theme+'"><meta charset="utf-8"><style id="preview-style">'+css+'</style><body>'+optionsPreviewDocument(frame.dataset.layers.split(','))+'</body></html>';
+  }
 }
 function optionsRenderReadingStyle(){optionsBuildReadingPalettes();const value=globalThis.RoamCatReadingStyle.normalize(optionsReadingDraft||optionsState.settings.readingStyle);for(const layer of optionsReadingLayers){const controls=optionsReadingControls[layer],layerValue=value[layer];controls.style.value=layerValue.style;controls.size.value=String(layerValue.size);controls.group.dataset.color=layerValue.color;controls.color.value=layerValue.color==='auto'?globalThis.RoamCatReadingStyle.palettes[0].color:layerValue.color;optionsUpdateReadingColorUI(layer);}optionsPreviewReadingStyle(value);}
 function optionsDiscardProviderDraft(){return !optionsProviderDirty||confirm(T('ctl.discardDraft'));}
@@ -275,7 +286,7 @@ function optionsRenderProvider(){const kind=optionsProviderKind(),radio=document
   serviceCatalog.sync();
   window.serviceCatalog=serviceCatalog;
 }
-function optionsRenderSentenceDensity(){optionsRenderDetailMeter();for(const input of optionsSentenceDensityInputs)input.checked=input.value===optionsSentenceDensity;}
+function optionsRenderSentenceDensity(){for(const input of optionsSentenceDensityInputs)input.checked=input.value===optionsSentenceDensity;}
 function optionsRenderSentenceLineStyle(){for(const input of optionsSentenceLineInputs)input.checked=input.value===optionsSentenceLineStyle;}
 function optionsRenderSentenceAllSites(){optionsSentenceAllSites.checked=Boolean((optionsAutomation?.automation||optionsState?.settings?.automation)?.sentenceGroupsAllSites);}
 function optionsStructureSegments(){
@@ -315,17 +326,7 @@ function optionsRenderStructurePreview(){
   css.textContent=rules.join('');
   optionsRenderStructureLegend();
 }
-function optionsRefreshStructurePreview(){optionsRenderAppearance();}
-function optionsRenderAppearance(){
-  const view=optionsAppearanceView;
-  for(const tab of optionsAppearanceTabs){const active=tab.dataset.appearanceTab===view;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;}
-  for(const panel of document.querySelectorAll('[data-appearance-panel]'))panel.hidden=panel.dataset.appearancePanel!==view;
-  optionsSentencePreview.hidden=view!=='structure';
-  optionsEls.readingStylePreview.hidden=!optionsReadingLayers.includes(view);
-  optionsEls.resetReadingStyle.parentElement.hidden=!optionsReadingLayers.includes(view);
-  if(view==='structure')optionsRenderStructurePreview();else optionsClearStructureHighlights();
-  if(optionsReadingLayers.includes(view))optionsSizeStylePreview();
-}
+function optionsRefreshStructurePreview(){optionsRenderStructurePreview();}
 // 视频与直播：开关、分段选择与预览都读 settings.video；在播放器「字幕设置」菜单里改了，storage.onChanged 会带回这里重绘。
 function optionsRenderVideo(){
   const video={...OPTIONS_VIDEO_DEFAULTS,...(optionsState.settings.video||{})};
@@ -340,9 +341,8 @@ function optionsRenderVideo(){
   optionsEls.videoDictationStatus.textContent=ready?T('ctl.dictationReady',{model:settings.subscriptionModel}):T('ctl.dictationNeedsGoogle');
 }
 async function optionsPatchVideo(patch){optionsClearError();try{const result=await request('VIDEO_SETTINGS_PATCH',{patch});optionsState.settings.video=result.video;optionsRenderAll();optionsShowSaved(T('ctl.videoSaved'));}catch(error){optionsShowError(error);optionsRenderAll();}}
-function optionsSelectAppearance(view){optionsAppearanceView=view;optionsRenderAppearance();}
 function optionsRenderAll(){
-  optionsRenderReadingReadout();
+  optionsRenderTranslationDisplay();
   optionsEls.readingDomain.value=optionsState.settings.domain||'auto';
   optionsRenderLookupKey();
   for(const input of optionsLookupDisplayInputs)input.checked=input.value===(optionsState.settings.lookupDisplay||'card');
@@ -376,7 +376,7 @@ function optionsRenderAll(){
   }
   optionsSetResult(optionsEls.dataProblem,optionsState.dataProblem||'',Boolean(optionsState.dataProblem));
   optionsRenderVideo();
-  optionsRenderAutomation();optionsRenderSentenceAllSites();optionsRenderDetection();optionsRenderReadingStyle();optionsRenderSentenceDensity();optionsRenderSentenceLineStyle();optionsRenderRules();optionsRenderTerms();optionsRenderProvider();void optionsRefreshStructurePreview();syncChoiceCards();
+  optionsRenderAutomation();optionsRenderSentenceAllSites();optionsRenderDetection();optionsRenderReadingStyle();optionsRenderSentenceDensity();optionsRenderSentenceLineStyle();optionsRenderRules();optionsRenderTerms();optionsRenderProvider();void optionsRefreshStructurePreview();
 }
 async function optionsSavePatch(patch,message=T('ctl.saved')){optionsClearError();try{optionsState=await request('STATE_PATCH',{patch});window.optionsState=optionsState;optionsRenderAll();optionsShowSaved(message);return true;}catch(error){optionsShowError(error);optionsRenderAll();return false;}}
 async function optionsPatchAutomation(patch,message){optionsClearError();try{optionsAutomation=await request('AUTOMATION_PATCH',{patch});optionsState.settings.automation=optionsAutomation.automation;optionsRenderAutomation();optionsRenderSentenceAllSites();void optionsRefreshStructurePreview();optionsShowSaved(message);return true;}catch(error){optionsShowError(error);optionsRenderAutomation();optionsRenderSentenceAllSites();void optionsRefreshStructurePreview();return false;}}
@@ -390,12 +390,12 @@ async function optionsSetSentenceLineStyle(lineStyle){
 }
 async function optionsSetSentenceDensity(density){
   if(!['coarse','medium','fine'].includes(density))return;
-  const showResult=(message,isError=false)=>{optionsSetResult(optionsSentenceDensityResult,message,isError);optionsSetResult(document.querySelector('#detail-meter-result'),message,isError);};
+  const showResult=(message,isError=false)=>optionsSetResult(optionsSentenceDensityResult,message,isError);
   const previous=optionsSentenceDensity;optionsSentenceDensity=density;optionsRenderSentenceDensity();optionsRenderStructurePreview();
-  optionsSentenceDensityInputs.forEach(input=>{input.disabled=true;});const matrixRange=document.querySelector('#matrix-index-range');if(matrixRange)matrixRange.disabled=true;showResult(T('ctl.saving'));
+  optionsSentenceDensityInputs.forEach(input=>{input.disabled=true;});showResult(T('ctl.saving'));
   try{const saved=await request('SENTENCE_GROUPS_DENSITY_SET',{density});optionsSentenceDensity=['coarse','medium','fine'].includes(saved?.density)?saved.density:density;optionsRenderSentenceDensity();optionsRenderStructurePreview();showResult(T('ctl.densitySaved'));optionsShowSaved(T('ctl.densitySavedShort'));}
   catch(error){optionsSentenceDensity=previous;optionsRenderSentenceDensity();optionsRenderStructurePreview();showResult(optionsErrorText(error),true);}
-  finally{optionsSentenceDensityInputs.forEach(input=>{input.disabled=false;});if(matrixRange)matrixRange.disabled=false;}
+  finally{optionsSentenceDensityInputs.forEach(input=>{input.disabled=false;});}
 }
 async function optionsToggleSite(site,enabled){const sites=optionsAutomation.automation.sites.filter(item=>item.origin!==site.origin);if(enabled!==null)sites.push({...site,enabled});await optionsPatchAutomation({sites},enabled===null?T('ctl.siteRemoved'):T('ctl.siteSaved'));}
 function optionsParseProviderURL(value){const baseUrl=value.trim();if(!baseUrl||baseUrl.length>2048)throw new Error(T('ctl.apiUrlInvalid'));let url;try{url=new URL(baseUrl);}catch{throw new Error(T('ctl.apiUrlInvalid'));}const loopback=['localhost','127.0.0.1','[::1]'].includes(url.hostname);if(!url.hostname||(url.protocol!=='https:'&&!(url.protocol==='http:'&&loopback)))throw new Error(T('ctl.apiUrlHttps'));if(url.username||url.password||url.search||url.hash)throw new Error(T('ctl.apiUrlClean'));return{baseUrl:baseUrl.replace(/\/+$/,''),url};}
@@ -523,9 +523,9 @@ async function optionsSetDiagnosticsEnabled(){const enabled=optionsEls.diagnosti
 async function optionsExportDiagnostics(){optionsEls.exportDiagnostics.disabled=true;optionsSetResult(optionsEls.diagnosticsResult,T('ctl.exporting'));try{const payload=await request('DIAGNOSTICS_EXPORT');const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`roamcat-diagnostics-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),0);optionsSetResult(optionsEls.diagnosticsResult,T('ctl.diagExported'));}catch(error){optionsSetResult(optionsEls.diagnosticsResult,optionsErrorText(error),true);}finally{optionsEls.exportDiagnostics.disabled=false;}}
 async function optionsClearDiagnostics(){if(!confirm(T('ctl.diagClearConfirm')))return;const sequence=++optionsDiagnosticsSequence;optionsDiagnosticsBusy=true;optionsEls.clearDiagnostics.disabled=true;try{const payload=await request('DIAGNOSTICS_CLEAR');if(sequence===optionsDiagnosticsSequence){optionsRenderDiagnostics(payload);optionsSetResult(optionsEls.diagnosticsResult,payload.native?.pendingClear?T('ctl.diagClearedPending'):T('ctl.diagCleared'));}}catch(error){if(sequence===optionsDiagnosticsSequence)optionsSetResult(optionsEls.diagnosticsResult,optionsErrorText(error),true);}finally{if(sequence===optionsDiagnosticsSequence){optionsDiagnosticsBusy=false;optionsEls.clearDiagnostics.disabled=false;}}}
 
-optionsEls.readingStylePreview.addEventListener('load',optionsObserveStylePreview);
+for(const frame of optionsReadingPreviews)frame.addEventListener('load',()=>optionsObserveStylePreview(frame));
 for(const layer of optionsReadingLayers){const controls=optionsReadingControls[layer];for(const input of [controls.style,controls.size])input.addEventListener('change',()=>{const readingStyle=optionsReadingStyleValue();optionsPreviewReadingStyle(readingStyle);void optionsSaveReadingStyle(readingStyle);});controls.palette.addEventListener('click',event=>{const button=event.target.closest('button[data-color]');if(!button)return;const color=button.dataset.color;controls.group.dataset.color=color;if(color!=='auto'){controls.color.value=color;if(controls.style.value==='plain'||(layer!=='original'&&controls.style.value==='default'))controls.style.value='color';}optionsUpdateReadingColorUI(layer);const readingStyle=optionsReadingStyleValue();optionsPreviewReadingStyle(readingStyle);void optionsSaveReadingStyle(readingStyle);});controls.color.addEventListener('input',()=>{controls.group.dataset.color=controls.color.value;if(controls.style.value==='plain'||(layer!=='original'&&controls.style.value==='default'))controls.style.value='color';optionsUpdateReadingColorUI(layer);optionsPreviewReadingStyle(optionsReadingStyleValue());});controls.color.addEventListener('change',()=>{const readingStyle=optionsReadingStyleValue();optionsPreviewReadingStyle(readingStyle);void optionsSaveReadingStyle(readingStyle);});}
-optionsEls.resetReadingStyle.addEventListener('click',()=>void optionsSaveReadingStyle(structuredClone(globalThis.RoamCatReadingStyle.defaults),T('ctl.styleReset')));
+for(const button of document.querySelectorAll('[data-reset-layers]'))button.addEventListener('click',()=>{const defaults=globalThis.RoamCatReadingStyle.defaults,next=optionsReadingStyleValue();for(const layer of button.dataset.resetLayers.split(','))next[layer]=structuredClone(defaults[layer]);void optionsSaveReadingStyle(next,T('ctl.styleReset'));});
 optionsEls.newApiService.addEventListener('click',async()=>{if(!optionsDiscardProviderDraft())return;await optionsCleanupDraftPermissions();optionsDraftServiceId=crypto.randomUUID();optionsProviderDirty=false;optionsProviderModels=[];optionsRenderProvider();optionsSetResult(optionsEls.providerResult,T('ctl.newService'));document.getElementById('provider-trigger').focus();});
 optionsEls.cancelApiService.addEventListener('click',async()=>{if(!optionsDiscardProviderDraft())return;await optionsCleanupDraftPermissions();optionsDraftServiceId=null;optionsProviderDirty=false;optionsProviderModels=[];optionsRenderProvider();optionsSetResult(optionsEls.providerResult,'');});
 optionsEls.apiServiceSelect.addEventListener('change',async()=>{const id=optionsEls.apiServiceSelect.value;if(!optionsDiscardProviderDraft()){optionsEls.apiServiceSelect.value=optionsState.settings.activeApiServiceId||'';return;}const service=optionsState.settings.apiServices.find(item=>item.id===id);if(!service)return;try{await optionsCleanupDraftPermissions();await optionsEnsurePermission(optionsOriginPattern(service.baseUrl),true);optionsDraftServiceId=null;optionsProviderDirty=false;optionsProviderModels=[];await optionsSavePatch({providerKind:'api',activeApiServiceId:id},T('ctl.switchedTo',{name:service.name}));optionsRenderProvider();}catch(error){optionsShowError(error);optionsRenderProvider();}});
@@ -534,14 +534,9 @@ optionsEls.providerName.addEventListener('input',()=>{optionsProviderDirty=true;
 optionsEls.providerId.addEventListener('change',async()=>{if(!optionsDiscardProviderDraft()){optionsProviderDirty=false;optionsRenderProvider();return;}await optionsCleanupDraftPermissions();const meta=getApiProvider(optionsEls.providerId.value);optionsRenderProviderFields(meta);optionsEls.providerName.value=meta.name;optionsEls.providerUrl.value=apiProviderBaseUrl(meta.id,optionsProviderOptions());optionsEls.providerModel.value=meta.defaultModel||'';optionsEls.providerKey.value='';optionsProviderModels=[];optionsProviderDirty=true;optionsRenderProvider();optionsSetResult(optionsEls.providerResult,T('ctl.providerChanged'));});
 
 
-for(const tab of optionsAppearanceTabs){
-  tab.addEventListener('click',()=>optionsSelectAppearance(tab.dataset.appearanceTab));
-  tab.addEventListener('keydown',event=>{
-    const index=optionsAppearanceTabs.indexOf(tab),last=optionsAppearanceTabs.length-1;
-    const next=event.key==='ArrowRight'?(index+1)%(last+1):event.key==='ArrowLeft'?(index+last)%(last+1):event.key==='Home'?0:event.key==='End'?last:null;
-    if(next===null)return;event.preventDefault();optionsSelectAppearance(optionsAppearanceTabs[next].dataset.appearanceTab);optionsAppearanceTabs[next].focus();
-  });
-}
+// 整页译文「双语 / 仅译文」：与弹窗、网页左下角的切换同走 PAGE_TRANSLATION_DISPLAY_SET，后台只改这一项并同步各标签页；失败退回已保存的值。
+function optionsRenderTranslationDisplay(){const value=optionsState?.settings?.pageTranslationDisplay==='translation'?'translation':'bilingual';for(const input of document.querySelectorAll('input[name="page-translation-display"]'))input.checked=input.value===value;}
+document.querySelectorAll('input[name="page-translation-display"]').forEach(input=>input.addEventListener('change',async()=>{if(!input.checked)return;const display=input.value;try{await request('PAGE_TRANSLATION_DISPLAY_SET',{display});if(optionsState)optionsState.settings={...optionsState.settings,pageTranslationDisplay:display};optionsShowSaved();}catch(error){optionsShowError(error);}finally{optionsRenderTranslationDisplay();}}));
 optionsEls.readingDomain.addEventListener('change',()=>void optionsSavePatch({domain:optionsEls.readingDomain.value}));
 optionsEls.lookupKey.addEventListener('change',()=>{const lookupKey=optionsEls.lookupKey.value;const keycap=document.querySelector('#keycap-badge');if(keycap)keycap.textContent=lookupKey;void optionsSavePatch({lookupKey},T('ctl.lookupSaved',{key:lookupKey}));});
 optionsEls.helpLanguage.addEventListener('change',()=>void optionsSavePatch({helpLanguage:optionsEls.helpLanguage.value},T('ctl.helpLangSaved')));
@@ -598,32 +593,7 @@ try{new MutationObserver(optionsHandleThemeChange).observe(document.documentElem
 if(window.chrome?.storage?.onChanged){chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes.sentenceGroupsDensity){optionsSentenceDensity=['coarse','medium','fine'].includes(changes.sentenceGroupsDensity.newValue)?changes.sentenceGroupsDensity.newValue:'medium';optionsRenderSentenceDensity();}if(changes.sentenceGroupsLineStyle){optionsSentenceLineStyle=['solid','dashed','dotted','wavy'].includes(changes.sentenceGroupsLineStyle.newValue)?changes.sentenceGroupsLineStyle.newValue:'solid';optionsRenderSentenceLineStyle();}if(!changes.settings&&!changes.subscriptionLinked)return;clearTimeout(optionsSyncTimer);optionsSyncTimer=setTimeout(()=>void optionsSyncState().catch(optionsShowError),30);});chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&(changes.sentenceGroupsDensity||changes.sentenceGroupsLineStyle))queueMicrotask(optionsRenderStructurePreview);});}if(window.chrome?.runtime?.onMessage){chrome.runtime.onMessage.addListener(message=>{if(message?.type==='SUBSCRIPTION_UPDATED'&&optionsState){if(message.kind&&message.kind!==optionsSubscriptionKind())return;optionsState.subscription=message.subscription||{};optionsRenderSubscription();}});}
 window.addEventListener('pagehide',()=>{void optionsCleanupDraftPermissions();});
 
-function syncChoiceCards() {
-  const radioGroups = ['assistance-mode', 'lookup-display', ...Object.keys(OPTIONS_VIDEO_CHOICES)];
-  radioGroups.forEach(groupName => {
-    const radios = document.querySelectorAll(`input[name="${groupName}"]`);
-    radios.forEach(radio => {
-      const card = radio.closest('.choice-card-item');
-      if (card) {
-        card.classList.toggle('is-selected', radio.checked);
-      }
-    });
-  });
-}
-
 function optionsInitCyberHUD() {
-  const matrixRange = document.querySelector('#matrix-index-range');
-  optionsRenderDetailMeter();
-  matrixRange?.addEventListener('input', () => optionsRenderDetailMeter(['coarse','medium','fine'][Number(matrixRange.value)-1]));
-  matrixRange?.addEventListener('change', () => void optionsSetSentenceDensity(['coarse','medium','fine'][Number(matrixRange.value)-1]));
-
-  // Radio button choice cards click binding
-  document.addEventListener('change', event => {
-    if (event.target.name === 'assistance-mode' || event.target.name === 'lookup-display') {
-      syncChoiceCards();
-    }
-  });
-
   document.querySelector('#floating-pet-enabled')?.addEventListener('change', event => {
     const enabled = event.target.checked;
     void optionsSavePatch({
@@ -711,31 +681,6 @@ function optionsInitCyberHUD() {
     });
   }
 
-  const exportRulesBtn = document.querySelector('#footer-export-rules');
-  if (exportRulesBtn) {
-    exportRulesBtn.addEventListener('click', () => {
-      void optionsExportData();
-    });
-  }
-
-  syncChoiceCards();
 }
 
 export async function optionsInit(initialSection='assistance'){optionsCurrentSection=initialSection;optionsFillDomains(optionsEls.readingDomain,true);optionsFillDomains(optionsEls.ruleDomain,false);optionsFillDomains(optionsEls.termDomain,false);if(optionsEls.installCommand)optionsEls.installCommand.textContent=optionsInstallCommand();optionsInitCyberHUD();try{const densityData=window.chrome?.storage?.local?await chrome.storage.local.get(['sentenceGroupsDensity','sentenceGroupsLineStyle']):{};optionsSentenceDensity=['coarse','medium','fine'].includes(densityData?.sentenceGroupsDensity)?densityData.sentenceGroupsDensity:'medium';optionsSentenceLineStyle=['solid','dashed','dotted','wavy'].includes(densityData?.sentenceGroupsLineStyle)?densityData.sentenceGroupsLineStyle:'solid';await optionsSyncState();if(optionsCurrentSection==='service'&&optionsProviderKind()!=='api')void optionsRefreshSubscription();}catch(error){if(window.chrome?.runtime?.id)optionsShowError(error);}}
-function optionsRenderDetailMeter(density=optionsSentenceDensity) {
-  const level=Math.max(1,['coarse','medium','fine'].indexOf(density)+1);
-  const labels=[T('ctl.d1'),T('ctl.d2'),T('ctl.d3')];
-  // 阅读偏好页不再重复放粒度滑杆（统一在「显示与解构」调），元素缺席时直接跳过。
-  const range=document.querySelector('#matrix-index-range');
-  if(!range)return;
-  range.value=String(level);range.setAttribute('aria-valuetext',labels[level-1]);
-  const statNum=document.querySelector('#threshold-stat-num');if(statNum)statNum.textContent=String(level).padStart(2,'0');
-  const stepBadge=document.querySelector('#matrix-step-badge');if(stepBadge)stepBadge.textContent=labels[level-1];
-  document.querySelectorAll('#matrix-step-gradient .matrix-step-cell').forEach((cell,i)=>{cell.classList.toggle('active',i<level*10);cell.classList.toggle('current',i===level*10-1);});
-}
-function optionsRenderReadingReadout() {
-  const settings=optionsState?.settings||{};
-  const mode=document.querySelector('#readout-mode'),display=document.querySelector('#readout-display');
-  if(mode)mode.textContent=settings.assistanceMode==='on-demand'?T('ctl.modeOnDemand'):T('ctl.modeAmbient');
-  if(display)display.textContent=settings.lookupDisplay==='annotation'?T('ctl.displayAnno'):T('ctl.displayCard');
-}

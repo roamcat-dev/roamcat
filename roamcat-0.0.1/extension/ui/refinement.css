@@ -55,11 +55,9 @@ button, input, select, textarea { font-family: var(--font-sans); }
 .options-body .hero-pill-badge { border: 0; padding: 0; background: none; font: var(--fs-1) var(--font-display); letter-spacing: .05em; }
 .options-body .hero-stage-chip { background: none; border: 0; border-left: 1px solid var(--color-border-card); border-radius: 0; color: var(--color-text-muted); font-size: var(--fs-1); font-weight: 400; }
 .options-body .hero-tag-row { flex-wrap: wrap; }
-.options-body .reading-readout { width: 280px; display: block; padding: 18px 20px; border: 1px solid var(--color-border-subtle); border-radius: 10px; color: var(--color-text-primary); background: var(--color-card-inset); }
 .readout-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; font: var(--fs-1) var(--font-sans); font-weight: 600; }
 .readout-edit { display: inline-flex; align-items: center; gap: 5px; color: var(--color-text-secondary); text-decoration: none; font-size: var(--fs-1); font-weight: 400; padding: 3px 0 3px 6px; }
 .readout-edit:hover { color: var(--color-text-primary); text-decoration: underline; text-underline-offset: 3px; }
-.readout-main { display: flex; gap: 14px; align-items: center; margin: 17px 0 18px; }
 /* 快捷键大字键帽：瓷面 + 厚底沿 + 顶棱高光，像一颗真的键 */
 .readout-key { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 46px; padding: 0; font: var(--fs-5)/1 var(--font-display); color: var(--color-text-primary); background-color: var(--color-card-bg); background-image: var(--face, none); border: 1px solid var(--rim, var(--color-border-card)); border-bottom: 3px solid var(--keycap-border-bottom, var(--color-border-card)); border-radius: 8px; box-shadow: var(--inset-soft, none), 0 2px 4px rgba(64, 48, 21, 0.12); text-shadow: var(--emboss, none); }
 .readout-action { display: block; font-size: var(--fs-2); font-weight: 500; margin-bottom: 5px; }
@@ -107,10 +105,6 @@ button, input, select, textarea { font-family: var(--font-sans); }
 .options-body .matrix-step-cell.active { background: var(--color-text-primary); }
 .options-body .matrix-step-cell.current { background: var(--color-amber); box-shadow: none; }
 /* 滑杆：铣出的槽 + 瓷质握把 */
-.options-body input.swiss-range-input { display: block; background-color: var(--color-border-card); background-image: var(--face-well, none); height: 6px; min-height: 0; padding: 0; border: 1px solid var(--rim-soft, transparent); margin: 12px 0; border-radius: 999px; box-shadow: var(--track, none); -webkit-appearance: none; appearance: none; }
-.options-body .swiss-range-input::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 19px; border-radius: 4px; border: 1px solid var(--rim, var(--color-card-bg)); background-color: var(--color-card-bg); background-image: var(--face, none); box-shadow: var(--inset-soft, none), 0 1px 3px rgba(64, 48, 21, 0.3); cursor: grab; }
-.options-body .swiss-range-input::-webkit-slider-thumb:active { cursor: grabbing; box-shadow: var(--press, none); }
-.options-body .swiss-range-input:focus-visible { outline: 2px solid var(--color-amber); outline-offset: 6px; }
 .options-body .matrix-scale-legend { gap: 12px; flex-wrap: wrap; }
 .options-body .history-metrics { gap: 12px; }
 .options-body .history-metrics > div { position: relative; border-radius: 7px; padding: 20px; border-color: var(--rim-soft, var(--color-border-card)); background-image: var(--face-raised, none); box-shadow: var(--inset-soft, none), var(--cast, none); }
@@ -132,7 +126,6 @@ button, input, select, textarea { font-family: var(--font-sans); }
   .options-body { --opt-pad: 24px; }
   .options-body .main-canvas-content { padding: 24px var(--opt-pad) 48px; }
   .options-body .compact-hero-banner { gap: 20px; }
-  .options-body .reading-readout { width: 250px; padding: 16px; }
   .options-body .hero-title { font-size: var(--fs-6); }
   .options-body .sec-subheading { display: none; }
 }
@@ -142,8 +135,6 @@ button, input, select, textarea { font-family: var(--font-sans); }
   .options-body .settings-toolbar { padding-top: 12px; padding-bottom: 12px; min-height: 60px; height: auto; }
   .options-body .toolbar-left { display: none; }
   .options-body .toolbar-right { margin-left: auto; }
-  .options-body .reading-readout { box-sizing: border-box; width: 100%; }
-  .readout-main { margin: 10px 0; }
   .options-body .choice-card-grid.two-col,.options-body .swiss-cards-grid-2 { grid-template-columns: 1fr; }
   .options-body .hero-stage-chip { display: none; }
   .options-body .swiss-card { padding: 18px; }
@@ -177,32 +168,13 @@ button, input, select, textarea { font-family: var(--font-sans); }
 /* A quiet, single-surface brand card in the sidebar. */
 .options-body .sidebar-user-card-wrap { padding: 0 16px 16px; border-top: 0; }
 .options-body .stamp-group-header { display: none; }
-.options-body .matrix-stamp-card { align-items: center; gap: 10px; padding: 8px 10px; min-height: 0; border: 1px solid var(--rim-soft, var(--color-border-subtle)); border-radius: 10px; background-color: var(--color-card-bg); background-image: var(--face, none); box-shadow: var(--inset-soft, none), var(--cast, none); }
-.options-body .matrix-stamp-card:hover { background-image: var(--face-raised, none); border-color: var(--rim, var(--color-border-card)); transform: none; box-shadow: var(--inset-soft, none), var(--cast-hover, none); }
-.options-body .matrix-stamp-card .stamp-art-box { width: 32px; min-width: 32px; height: 36px; padding: 0; background: none; border: 0; overflow: hidden; }
-.options-body .matrix-stamp-card .stamp-art-box::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 15px; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--color-emerald) 32%, transparent) 55%, transparent); opacity: 0; transform: translateY(-100%); pointer-events: none; }
-.options-body .matrix-stamp-card:hover .stamp-art-box::after { opacity: 1; animation: stamp-scanline 1.4s var(--rc-ease-standard, ease) infinite; }
-.options-body .matrix-stamp-card:hover .stamp-tree-svg { color: var(--color-text-secondary); }
-@keyframes stamp-scanline { from { transform: translateY(-110%); } to { transform: translateY(440%); } }
-.options-body .matrix-stamp-card .stamp-content-wrap { padding: 0; gap: 4px; overflow: visible; }
-.options-body .matrix-stamp-card .stamp-eyebrow { font-family: var(--font-mono); font-size: var(--fs-1); letter-spacing: .12em; text-transform: uppercase; color: var(--color-text-muted); line-height: 1; white-space: nowrap; }
-.options-body .matrix-stamp-card :is(.stamp-eyebrow,.stamp-meta-info,.stamp-seal-badge) { display: none; }
-.options-body .matrix-stamp-card .stamp-hero-num { font-size: var(--fs-3); font-weight: 600; line-height: 1.25; margin: 0; letter-spacing: .035em; }
-.options-body .matrix-stamp-card .stamp-meta-info { margin: 0; }
-.options-body .matrix-stamp-card .stamp-meta-title { font-size: var(--fs-1); font-weight: 400; line-height: 1.5; color: var(--color-text-secondary); }
 .options-body .stamp-pet-status { display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; font-family: var(--font-mono); font-size: var(--fs-1); letter-spacing: .02em; white-space: nowrap; color: var(--color-text-muted); line-height: 1; }
 .options-body .stamp-status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; transition: background-color .2s ease, box-shadow .2s ease; }
 .options-body .stamp-pet-status.is-on { color: var(--color-text-secondary); }
 .options-body .stamp-pet-status.is-on .stamp-status-dot { background: var(--color-emerald); box-shadow: 0 0 5px color-mix(in srgb, var(--color-emerald) 70%, transparent); animation: stamp-status-pulse 2.6s ease-in-out infinite; }
 @keyframes stamp-status-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
-.options-body .matrix-stamp-card .stamp-seal-badge { right: 4px; top: 50%; bottom: auto; width: 46px; height: 46px; transform: translateY(-50%) rotate(-12deg); opacity: .5; }
-.options-body .matrix-stamp-card:hover .stamp-seal-badge { transform: translateY(-50%) rotate(-3deg) scale(1.06); opacity: .95; }
 .options-body.sidebar-collapsed .sidebar-user-card-wrap { padding: 10px; }
 .options-body.sidebar-collapsed .stamp-group-header { display: none; }
-.options-body.sidebar-collapsed .matrix-stamp-card { min-height: 52px; padding: 5px; gap: 0; justify-content: center; }
-.options-body.sidebar-collapsed .matrix-stamp-card .stamp-art-box { min-width: 0; width: 34px; height: 40px; padding: 0; border-right: 0; }
-.options-body.sidebar-collapsed .matrix-stamp-card .stamp-seal-badge { display: none; }
-.options-body.sidebar-collapsed .matrix-stamp-card::after { display: none; }
 
 /* RoamCat Floating Pet Card in Options */
 .options-body .pet-card-body {
@@ -365,34 +337,6 @@ button, input, select, textarea { font-family: var(--font-sans); }
   transform: none;
 }
 
-/* 任务路由：每类任务可绑定独立 API 服务 */
-.options-body .task-routing {
-  border: 1px solid var(--color-border, rgba(0,0,0,.12));
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.options-body .task-routing legend {
-  font-size: var(--fs-2);
-  font-weight: 600;
-  color: var(--color-text-primary);
-  padding: 0 6px;
-}
-.options-body .task-routing .field-help {
-  margin: 0;
-  font-size: var(--fs-1);
-  color: var(--color-text-dim);
-}
-/* 行内排版（左标签、右下拉框）在 options.css 的「任务分配」段，这里只留字号与颜色。 */
-.options-body .task-routing .route-row > span {
-  font-size: var(--fs-2);
-  color: var(--color-text-primary);
-}
-.options-body .task-routing .route-row select { min-width: 0; }
-
 /* 模型用量统计（运行诊断分区）：汇总芯片 + 明细表 */
 .options-body .usage-stats .usage-totals {
   display: grid;
@@ -455,16 +399,6 @@ button, input, select, textarea { font-family: var(--font-sans); }
   .options-body .usage-stats .usage-totals { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* 伴读猫直达聚焦聚光灯动效 */
-@keyframes petCardFlash {
-  0% { box-shadow: 0 0 0 0 rgba(240, 166, 60, 0.7); }
-  50% { box-shadow: 0 0 0 5px rgba(240, 166, 60, 0.4); }
-  100% { box-shadow: 0 0 0 0 rgba(240, 166, 60, 0); }
-}
-.options-body .pet-card-highlight {
-  animation: petCardFlash 1.4s cubic-bezier(0.16, 1, 0.3, 1) 2;
-}
-
 /* -------------------------------------------------------------
  * 全局设置页排版系统深度调优
  * ----------------------------------------------------------- */
@@ -500,11 +434,6 @@ button, input, select, textarea { font-family: var(--font-sans); }
   }
 }
 
-/* 4. 头部 Banner 在无右侧伴读卡片时自适应视觉重心 */
-.options-body .compact-hero-banner:has(.reading-readout[hidden]) .hero-left {
-  max-width: 56em;
-}
-
 /* 5. 术语表单与输入行微调：统一对齐基线与交互边框 */
 .options-body #term-form.inline-form {
   gap: 16px 20px;
@@ -525,8 +454,6 @@ button, input, select, textarea { font-family: var(--font-sans); }
 .welcome-body .brand-icon-box img { width: 36px; height: 36px; border-radius: 9px; box-shadow: 0 2px 6px rgba(70, 50, 30, 0.18); }
 
 /* 侧栏印章卡：给右下角的圆形钢印留出位置，猫名过长（英文）时省略而不压到钢印上。 */
-.options-body .matrix-stamp-card .stamp-content-wrap { padding-right: 46px; }
-.options-body .matrix-stamp-card :is(.stamp-hero-num,.stamp-meta-title) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 侧栏小字下限：版本号、印章眉标与副标题原为 9–10px，放大 1px 保证可读。 */
 .options-body .brand-pro-tag { font-size: var(--fs-1); }

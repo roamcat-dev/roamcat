@@ -1,9 +1,8 @@
 /**
  * @file src/pages/options/sections/history.js
- * 文件职责：设置页静态分区模板——最初从
- *   extension/ui/options.html 机械切片生成（切片脚本已移除）；id/控件契约与原页完全一致。
- * 主要内容：无绑定静态模板（动态内容由 options-controller.js 命令式填充），
- *   分区可见性由 options-app 统一驱动。
+ * 文件职责：设置页「词汇与记录 · 阅读记录」分区模板：记录设置、统计概览与记录列表。
+ * 主要内容：无绑定静态模板（动态内容由 @ext/ui/history.js 命令式填充），分区可见性由 options-app 统一驱动。
+ *   记录设置排在最前（不开就没有记录可看），统计周期只作用于下方的统计与记录；id 契约不变。
  * 模块边界：纯展示模板。
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,14 +12,25 @@
  */
 import {html} from 'lit';
 import {t} from '../../../i18n-runtime.js';
+import {switchRow} from './parts.js';
 
 export const historySection = html`
 <section id="history" class="settings-section history-section" aria-labelledby="history-heading" hidden="">
-      <div class="section-intro"><h2 id="history-heading" class="sr-only">${t('sec.history.title')}</h2><p>${t('sec.history.desc')}</p></div>
+      <h2 id="history-heading" class="sr-only">${t('sec.history.title')}</h2>
       <p id="history-problem" class="notice error" role="alert" hidden=""></p><p id="history-operation-result" class="inline-message" aria-live="polite" hidden=""></p>
-      <div class="history-toolbar" id="history-period-toolbar"><fieldset class="history-period" aria-label="${t('sec.history.period')}"><legend class="sr-only">${t('sec.history.period')}</legend><label><input type="radio" name="history-days" value="7"><span>${t('sec.history.d7')}</span></label><label><input type="radio" name="history-days" value="30" checked=""><span>${t('sec.history.d30')}</span></label><label><input type="radio" name="history-days" value="0"><span>${t('sec.history.all')}</span></label></fieldset><span id="history-started" class="muted"></span></div>
-      <!-- 不再分「记录 / 统计 / 设置」子标签：同一页依次是统计概览、记录、记录设置；还没有记录时只显示说明与设置。 -->
       <div id="history-first-use" class="paper-card first-use-card" hidden=""><div><b>${t('sec.history.firstUse')}</b><p>${t('sec.history.firstUseDesc')}</p></div></div>
+      <div id="history-view-settings" class="opt-group history-block"><div class="opt-group-head"><h2>${t('sec.history.tabSettings')}</h2></div><div class="opt-card history-consent">
+        ${switchRow('history-enabled', t('sec.history.save'), t('sec.history.saveDesc'))}
+        <div class="opt-row is-block history-origin-row">
+          <form id="history-origin-form" class="automation-site-form"><label class="field"><span>${t('sec.history.allowSite')}</span><input id="history-origin" type="url" inputmode="url" autocomplete="off" placeholder="https://example.com" required=""><small>${t('sec.history.allowSiteHint')}</small></label><button class="primary-action narrow" type="submit">${t('sec.history.add')}</button></form>
+          <div id="history-origin-list" class="history-origin-list"></div><p id="history-origin-empty" class="empty-state">${t('sec.history.originEmpty')}</p>
+        </div>
+        ${switchRow('history-summaries', t('sec.history.summaries'), t('sec.history.summariesDesc'))}
+        <p id="history-config-result" class="inline-message opt-row-message" aria-live="polite"></p>
+        <p class="opt-card-note">${t('sec.history.gotoPrivacy')}<a href="#privacy">${t('opt.nav.privacy')}</a>${t('sec.history.gotoPrivacyEnd')}</p>
+      </div></div>
+      <div class="history-toolbar" id="history-period-toolbar"><fieldset class="history-period" aria-label="${t('sec.history.period')}"><legend class="sr-only">${t('sec.history.period')}</legend><label><input type="radio" name="history-days" value="7"><span>${t('sec.history.d7')}</span></label><label><input type="radio" name="history-days" value="30" checked=""><span>${t('sec.history.d30')}</span></label><label><input type="radio" name="history-days" value="0"><span>${t('sec.history.all')}</span></label></fieldset><span id="history-started" class="muted"></span></div>
+      <!-- 不分子标签：同一页依次是记录设置、统计周期、统计概览、记录；还没有记录时只显示说明与设置。 -->
       <div id="history-view-stats" class="opt-group history-block"><div class="opt-group-head"><h2>${t('sec.history.tabStats')}</h2></div>
         <div id="history-stats-content" class="section-tab-stack">
           
@@ -36,14 +46,6 @@ export const historySection = html`
           <div class="history-event-actions"><span id="history-range-note" class="field-help"></span><button id="history-more" type="button" hidden="">${t('sec.history.more')}</button></div>
         </div>
       </div>
-      <div id="history-view-settings" class="opt-group history-block"><div class="opt-group-head"><h2>${t('sec.history.tabSettings')}</h2></div><div class="paper-card history-consent form-stack">
-        <div class="adaptive-setting"><div><b>${t('sec.history.save')}</b><p>${t('sec.history.saveDesc')}</p></div><label class="switch"><input id="history-enabled" type="checkbox"><span aria-hidden="true"></span><span class="sr-only">${t('sec.history.save')}</span></label></div>
-        <form id="history-origin-form" class="automation-site-form"><label class="field"><span>${t('sec.history.allowSite')}</span><input id="history-origin" type="url" inputmode="url" autocomplete="off" placeholder="https://example.com" required=""><small>${t('sec.history.allowSiteHint')}</small></label><button class="primary-action narrow" type="submit">${t('sec.history.add')}</button></form>
-        <div id="history-origin-list" class="history-origin-list"></div><p id="history-origin-empty" class="empty-state">${t('sec.history.originEmpty')}</p>
-        <div class="adaptive-setting"><div><b>${t('sec.history.summaries')}</b><p>${t('sec.history.summariesDesc')}</p></div><label class="switch"><input id="history-summaries" type="checkbox"><span aria-hidden="true"></span><span class="sr-only">${t('sec.history.summaries')}</span></label></div>
-        <p id="history-config-result" class="inline-message" aria-live="polite"></p>
-        <p class="field-help">${t('sec.history.gotoPrivacy')}<a href="#privacy">${t('opt.nav.privacy')}</a>。</p>
-      </div></div>
     </section>
 
 `;

@@ -28,7 +28,7 @@ export const diagnosticsSection = html`
             <div class="opt-row-text"><label for="diagnostics-enabled" class="opt-row-label">${t('sec.diag.record')}</label><p id="diagnostics-recording-note" class="opt-row-desc">${t('sec.diag.reading')}</p></div>
             <div class="opt-row-control"><label class="switch"><input id="diagnostics-enabled" type="checkbox"><span aria-hidden="true"></span><span class="sr-only">${t('sec.diag.record')}</span></label></div>
           </div>
-          <div class="opt-row diagnostics-native">
+          <div class="opt-row is-info diagnostics-native">
             <div class="opt-row-text"><span class="opt-row-label"><span id="diagnostics-native-dot" class="connection-dot" aria-hidden="true"></span> <b id="diagnostics-native-state">${t('sec.diag.nativeCheck')}</b></span><p id="diagnostics-native-note" class="opt-row-desc"></p></div>
           </div>
         </div>
@@ -46,7 +46,7 @@ export const diagnosticsSection = html`
             <div class="opt-row-text"><span class="opt-row-label">${t('sec.diag.issues')}</span><p class="opt-row-desc">${t('sec.diag.issuesDesc')}</p></div>
             <span id="diagnostics-updated" class="muted" aria-live="polite"></span>
           </div>
-          <div class="opt-row opt-row-stack">
+          <div class="opt-row is-block">
             <div id="diagnostics-issues" class="diagnostics-issues"></div>
             <p id="diagnostics-issues-empty" class="empty-state">${t('sec.diag.issuesEmpty')}</p>
           </div>
@@ -63,7 +63,7 @@ export const diagnosticsSection = html`
       <div class="opt-group usage-stats" id="usage-stats">
         <div class="opt-group-head"><h2>${t('sec.svc.usageTitle')}</h2></div>
         <div class="opt-card">
-          <div class="opt-row opt-row-stack">
+          <div class="opt-row is-block">
 <p class="opt-row-desc">${t('sec.svc.usageNote')}</p>
 <div id="usage-stats-totals" class="usage-totals"></div>
 <p id="usage-stats-empty" class="field-help" hidden="">${t('sec.svc.usageEmpty')}</p>

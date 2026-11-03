@@ -13,6 +13,7 @@
  */
 import {html} from 'lit';
 import {t} from '../../../i18n-runtime.js';
+import {eyeToggle} from './parts.js';
 
 export const serviceSection = html`
 <section id="service" class="settings-section" aria-labelledby="service-heading" hidden="">
@@ -20,8 +21,8 @@ export const serviceSection = html`
 <h2 id="service-heading" class="sr-only">${t('sec.svc.title')}</h2>
 <p>${t('sec.svc.desc')}</p>
 </div>
-      <!-- 兼容保留底层服务单选单态，保持核心逻辑与测试用例透明兼容 -->
-      <fieldset class="provider-picker" style="display: none !important;">
+      <!-- 隐藏的服务类型单选：控制器仍按它读写 providerKind，界面上由服务目录代替 -->
+      <fieldset class="provider-picker" hidden="">
         <legend>${t('sec.svc.source')}</legend>
         <div class="choice-cards three provider-choices">
           <label><input type="radio" name="provider-kind" value="chatgpt"></label>
@@ -31,10 +32,10 @@ export const serviceSection = html`
         </div>
       </fieldset>
 
-      <!-- FluentRead 风格 Service Catalog 双栏工作区 -->
+      <!-- 服务与连接：上方是所选服务的详情卡（CSS order 提到最前），下方是分组的服务目录 -->
       <div class="service-catalog-workspace">
         <div class="catalog-layout">
-          <!-- 左栏：Service Rail 服务目录导航 -->
+          <!-- 服务目录：搜索 + 分组卡片，由 options-service-catalog.js 渲染 -->
           <aside class="service-rail" aria-label="${t('sec.svc.catalog')}">
             <div class="rail-heading">
               <div>
@@ -57,7 +58,7 @@ export const serviceSection = html`
             </div>
           </aside>
 
-          <!-- 右栏：Service Detail 服务配置详情面板 -->
+          <!-- 所选服务的详情与配置 -->
           <section class="service-detail" aria-label="${t('sec.svc.detailAria')}">
             <div class="detail-hero">
               <div class="detail-hero-left">
@@ -95,8 +96,10 @@ export const serviceSection = html`
 <b id="subscription-state">${t('sec.svc.checking')}</b>
 <p id="subscription-detail">
 </p>
+<details id="subscription-tech" class="calculation-note" hidden=""><summary>${t('sec.svc.techDetail')}</summary><code id="subscription-tech-text"></code></details>
 </div>
-<button id="refresh-subscription" class="icon-text-button" type="button">${t('sec.svc.recheck')}</button>
+<!-- 与详情卡标题区的「刷新连接与状态」是同一个动作：保留给它点击触发，界面上不再重复显示 -->
+<button id="refresh-subscription" class="icon-text-button" type="button" hidden="">${t('sec.svc.recheck')}</button>
 </div>
 <ol id="subscription-steps" class="setup-steps" aria-label=${t('sec.svc.stepsAria')}>
 <li class="setup-step" data-step="install">
@@ -214,10 +217,7 @@ export const serviceSection = html`
 </span>
 <div class="password-input-wrap">
   <textarea id="provider-key" class="key-pool-input" rows="3" autocomplete="off" spellcheck="false"></textarea>
-  <button type="button" class="toggle-password-btn" data-toggle-target="provider-key" title="${t('sec.svc.toggleKey')}" aria-label="${t('sec.svc.toggleKey')}">
-    <svg class="eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-    <svg class="eye-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" hidden><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-  </button>
+  ${eyeToggle('provider-key', t('sec.svc.toggleKey'))}
 </div>
 <small id="key-state">
 </small>
@@ -302,68 +302,6 @@ export const serviceSection = html`
             </div> <!-- /.detail-content-body -->
           </section> <!-- /.service-detail -->
         </div> <!-- /.catalog-layout -->
-        <!-- 任务分配：全局设置，不随左侧选中的服务变化。先按场景选翻译引擎，用大模型的任务再选由哪个自备 API 服务处理。 -->
-        <section id="task-assignment" class="paper-card task-assignment" aria-labelledby="task-assignment-title">
-          <div class="task-assignment-head">
-            <h3 id="task-assignment-title">${t('sec.svc.taskTitle')}</h3>
-            <p class="field-help">${t('sec.svc.taskNote')}</p>
-          </div>
-          <div class="task-assignment-groups">
-          <fieldset id="translation-engines" class="task-routing">
-<legend>${t('sec.svc.mt.engines')}</legend>
-<p class="field-help">${t('sec.svc.mt.enginesNote')}</p>
-<label class="field route-row">
-<span>${t('sec.svc.mt.scenePage')}</span>
-<select id="engine-page"></select>
-</label>
-<label class="field route-row">
-<span>${t('sec.svc.mt.sceneVideo')}</span>
-<select id="engine-video"></select>
-</label>
-<label class="field route-row">
-<span>${t('sec.svc.mt.sceneLiveChat')}</span>
-<select id="engine-liveChat"></select>
-</label>
-<label class="field route-row">
-<span>${t('sec.svc.mt.sceneReader')}</span>
-<select id="engine-reader"></select>
-</label>
-<label class="field route-row">
-<span>${t('sec.svc.mt.scenePassage')}</span>
-<select id="engine-passage"></select>
-</label>
-<div class="adaptive-setting">
-<div><b>${t('sec.svc.mt.fallback')}</b><p>${t('sec.svc.mt.fallbackNote')}</p></div>
-<label class="switch"><input id="mt-fallback" type="checkbox"><span aria-hidden="true"></span><span class="sr-only">${t('sec.svc.mt.fallback')}</span></label>
-</div>
-          </fieldset>
-          <fieldset id="api-routing" class="task-routing">
-<legend>${t('sec.svc.routing')}</legend>
-<p class="field-help">${t('sec.svc.routingNote')}</p>
-<p id="api-routing-empty" class="field-help task-routing-empty" hidden="">${t('sec.svc.routingEmpty')}</p>
-<label class="field route-row">
-<span>${t('sec.svc.routeAssist')}</span>
-<select id="route-assist"></select>
-</label>
-<label class="field route-row">
-<span>${t('sec.svc.routeSupport')}</span>
-<select id="route-support"></select>
-</label>
-<label class="field route-row">
-<span>${t('sec.svc.routeGroups')}</span>
-<select id="route-groups"></select>
-</label>
-<label class="field route-row">
-<span>${t('sec.svc.routeSummary')}</span>
-<select id="route-summary"></select>
-</label>
-<label class="field route-row">
-<span>${t('sec.svc.routeTranslate')}</span>
-<select id="route-translate"></select>
-</label>
-          </fieldset>
-          </div>
-        </section>
       </div> <!-- /.service-catalog-workspace -->
     </section>
 

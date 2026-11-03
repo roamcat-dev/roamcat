@@ -121,7 +121,7 @@ export const shortcutsSection = html`
     <span class="guide-eyebrow">${t('sec.keys.customEyebrow')}</span>
     <h3 id="shortcut-custom-heading">${t('sec.keys.customTitle')}</h3>
     <ol class="guide-list">
-      <li><strong>${t('sec.keys.slotLabel')}：</strong>${t('sec.keys.lookupCustomA')}<kbd data-lookup-key>D</kbd>${t('sec.keys.lookupCustomB')}<a href="#assistance">${t('opt.nav.assist')}</a>${t('sec.keys.lookupCustomC')}</li>
+      <li><strong>${t('sec.keys.slotLabel')}：</strong>${t('sec.keys.lookupCustomA')}<kbd data-lookup-key>D</kbd>${t('sec.keys.lookupCustomB')}<a href="#assistance">${t('opt.tab.lookup')}</a>${t('sec.keys.lookupCustomC')}</li>
       <li><strong>${t('sec.keys.customEyebrow')}：</strong>${t('sec.keys.browserDesc')}</li>
     </ol>
     <p>

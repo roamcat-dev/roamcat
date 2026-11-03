@@ -32,6 +32,7 @@ function mockChrome(){
       case 'MODELS_LIST':data={models:[]};break;
       case 'API_MODELS_LIST':await new Promise(r=>setTimeout(r,window.qa.modelDelay||0));window.qa.modelsDone=(window.qa.modelsDone||0)+1;data={models:[{id:'fixture-model',name:'Fixture model'}]};break;
       case 'VIDEO_SETTINGS_PATCH':{if(window.qa.failVideo)return {ok:false,error:'模拟视频设置保存失败'};const settings=read();settings.video={...settings.video,...message.patch};localStorage.setItem('qa-settings',JSON.stringify(settings));data={video:settings.video};break;}
+      case 'PAGE_TRANSLATION_DISPLAY_SET':{if(window.qa.failDisplay)return {ok:false,error:'模拟显示方式保存失败'};const settings=read();settings.pageTranslationDisplay=message.display;localStorage.setItem('qa-settings',JSON.stringify(settings));data={display:message.display};break;}
       case 'SENTENCE_GROUPS_DENSITY_SET':if(window.qa.failDensity)return {ok:false,error:'模拟保存失败'};localStorage.setItem('qa-density',message.density);data={density:message.density};break;
       case 'HISTORY_GET':{const daily=Array.from({length:14},(_,i)=>({day:new Date(Date.now()-(13-i)*86400000).toISOString().slice(0,10),activeMs:(i%4===0?0:(i+3)*60000),terms:i*2,sentences:i%4}));data={config:{enabled:true,startedAt:Date.now()-14*86400000,origins:[]},events:[],rules:[],summaries:[],daily,metrics:{activeMs:7200000,words:8400,terms:48,queries:62,sentences:12}};break;}
     }
@@ -87,6 +88,16 @@ try{
   assert.match(await page.locator('#global-error').textContent(),/模拟视频设置保存失败/);
   await page.evaluate(()=>{qa.failVideo=false;});
   report.checks.push('Video section saves caption style through VIDEO_SETTINGS_PATCH, updates the preview, survives reload, and rolls back on failure');
+  // 双语翻译：「双语 / 仅译文」在设置页也能改，与弹窗、网页左下角同走 PAGE_TRANSLATION_DISPLAY_SET；失败时退回已保存的值。
+  const displayPick=value=>page.locator(`label:has(input[name="page-translation-display"][value="${value}"])`).click();
+  await page.evaluate(s=>{location.hash='#'+s},'translation');await until(()=>Boolean(document.querySelector('#translation:not([hidden])')?.offsetHeight));
+  assert.equal(await page.locator('input[name="page-translation-display"]:checked').inputValue(),'bilingual');
+  await displayPick('translation');await page.waitForFunction(()=>JSON.parse(localStorage.getItem('qa-settings')).pageTranslationDisplay==='translation');
+  await page.reload();await ready();assert.equal(await page.locator('input[name="page-translation-display"]:checked').inputValue(),'translation');
+  await page.evaluate(()=>{qa.failDisplay=true;});await displayPick('bilingual');await until(()=>/模拟显示方式保存失败/.test(document.querySelector('#global-error')?.textContent||''));
+  assert.equal(await page.locator('input[name="page-translation-display"]:checked').inputValue(),'translation');
+  await page.evaluate(()=>{qa.failDisplay=false;});
+  report.checks.push('Page translation display saves from the options page through PAGE_TRANSLATION_DISPLAY_SET, survives reload, and rolls back on failure');
   await page.evaluate(s=>{location.hash='#'+s},'history');await until(()=>document.querySelectorAll('.history-bar').length>0);
   // 阅读记录不再分子标签：统计、记录、记录设置同页可见。
   assert.equal(await page.evaluate(()=>['history-view-stats','history-view-records','history-view-settings'].every(id=>!document.getElementById(id).hidden)&&!document.querySelector('#history .section-tabs')),true);
@@ -149,6 +160,8 @@ try{
   assert.equal(await page.evaluate(()=>window.optionsState.settings.mtServices.find(row=>row.providerId==='deepl').credentials.apiKey),'fixture-mt-secret');
   await page.locator('#mt-test').click();await until(()=>document.querySelector('#mt-result').textContent.includes('连接正常'));
   report.checks.push('MT credentials save, blank fields preserve secrets, keys are not echoed, and connection checks work');
+  // 场景引擎与回退开关在「模型服务 · 任务分配」标签页。
+  await page.evaluate(s=>{location.hash='#'+s},'routing');await until(()=>Boolean(document.querySelector('#routing:not([hidden]) #engine-video')?.offsetHeight));
   await page.locator('#engine-video').selectOption('deepl');await until(()=>window.optionsState.settings.translationEngines.video==='deepl');await until(()=>!document.querySelector('#engine-video').disabled);
   await page.locator('#engine-page').selectOption('google-web');await until(()=>window.optionsState.settings.translationEngines.page==='google-web');await until(()=>!document.querySelector('#engine-page').disabled);
   assert.equal(await page.locator('#engine-video').inputValue(),'deepl');
@@ -156,6 +169,7 @@ try{
   assert.equal(await page.locator('#engine-video').inputValue(),'deepl');
   await page.locator('label:has(#mt-fallback)').click();await until(()=>!document.querySelector('#mt-fallback').disabled);assert.equal(await page.locator('#mt-fallback').isChecked(),true);
   await page.evaluate(()=>{qa.failPatch=false;});await page.locator('label:has(#mt-fallback)').click();await until(()=>window.optionsState.settings.mtFallback===false);
+  await page.evaluate(s=>{location.hash='#'+s},'service');await until(()=>Boolean(document.querySelector('#service:not([hidden]) #mt-panel')?.offsetHeight));
   await until(()=>!document.querySelector('#mt-delete').disabled);
   // 紧凑表单滚到回退开关后，删除按钮可能处在粘性页头后面；先把它放到可见主区中央，再真实点击。
   await page.locator('#mt-delete').evaluate(el=>el.scrollIntoView({block:'center'}));await page.settle();

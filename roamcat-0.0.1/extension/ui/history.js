@@ -300,11 +300,6 @@ function activateTab(button) {
   for(const tab of document.querySelectorAll('[data-history-tab]')) { const active=tab===button;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1; }
   historyState.tab=button.dataset.historyTab;els.historyList.setAttribute('aria-labelledby',button.id);resetHistoryPaging();els.historySearch.disabled=historyState.tab==='rule';els.historyDomain.disabled=false;els.historySource.disabled=historyState.tab==='rule';void loadHistory();
 }
-function activateSectionTab(button,{focus=false}={}) {
-  const group=button.dataset.sectionTab,tabs=[...document.querySelectorAll('[data-section-tab="'+group+'"]')];
-  for(const tab of tabs){const active=tab===button;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;byId(tab.dataset.target).hidden=!active;}
-  if(focus)button.focus();
-}
 function visibleSection() { return location.hash.slice(1); }
 function loadVisibleSection() {
   const section=visibleSection();
@@ -320,8 +315,6 @@ document.querySelectorAll('input[name="history-days"]').forEach(input=>input.add
 els.historyChartMetric.addEventListener('change',renderChart);els.historyFilters.addEventListener('submit',event=>{event.preventDefault();resetHistoryPaging();void loadHistory();});els.historySource.addEventListener('change',()=>{resetHistoryPaging();void loadHistory();});
 els.historyMore.addEventListener('click',()=>void loadHistory({append:true}));
 document.querySelectorAll('[data-history-tab]').forEach(button=>{button.addEventListener('click',()=>activateTab(button));button.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;const tabs=[...document.querySelectorAll('[data-history-tab]')],index=tabs.indexOf(button),next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;event.preventDefault();tabs[next].focus();activateTab(tabs[next]);});});
-document.querySelectorAll('[data-section-tab]').forEach(button=>{button.addEventListener('click',()=>activateSectionTab(button));button.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;const tabs=[...document.querySelectorAll('[data-section-tab="'+button.dataset.sectionTab+'"]')].filter(tab=>!tab.hidden),index=tabs.indexOf(button),next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;event.preventDefault();activateSectionTab(tabs[next],{focus:true});});});
-document.querySelectorAll('[data-open-section-tab]').forEach(button=>button.addEventListener('click',()=>{const target=button.dataset.openSectionTab,tab=document.querySelector('[data-target="'+target+'"]');if(tab)activateSectionTab(tab,{focus:true});}));
 els.historyExport.addEventListener('click',async()=>{try{const data=await request('HISTORY_EXPORT');downloadJson(data,`roamcat-history-${new Date().toISOString().slice(0,10)}.json`);setResult(els.historyActionResult,M('完整记录已导出。','Full records exported.'));}catch(error){setResult(els.historyActionResult,errorText(error),true);}});
 els.historyClear.addEventListener('click',()=>{if(confirm(M('确定清空全部阅读记录、统计、摘要和个性化版本吗？此操作无法撤销。','Clear all reading records, stats, summaries, and personalization versions? This cannot be undone.')))void mutateHistory('HISTORY_CLEAR',{},M('阅读记录与个性化数据已清空。','Reading history and personalization data cleared.'));});
 els.personalizationEnabled.addEventListener('change',()=>void patchConfig({personalization:els.personalizationEnabled.checked},els.personalizationEnabled.checked?M('个性化分析已开启。','Personalized analysis enabled.'):M('个性化分析已关闭。','Personalized analysis disabled.')).then(loadPersonalization));

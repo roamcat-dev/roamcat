@@ -21,7 +21,7 @@ const out = previewPath('ui-audit');
 if (fs.existsSync(out)) for (const name of fs.readdirSync(out)) if (/\.png$/i.test(name)) fs.rmSync(path.join(out, name), {force: true});
 fs.mkdirSync(out, {recursive: true});
 
-const OPTION_SECTIONS = ['assistance', 'appearance', 'sites', 'video', 'service', 'terms', 'personalization', 'history', 'privacy', 'shortcuts', 'guide', 'diagnostics'];
+const OPTION_SECTIONS = ['assistance', 'appearance', 'translation', 'pet', 'sites', 'video', 'service', 'routing', 'terms', 'personalization', 'history', 'privacy', 'guide', 'shortcuts', 'diagnostics'];
 const THEMES = ['light', 'dark'];
 
 const report = {checks: [], failures: [], warnings: [], consoleErrors: {}, overflow: [], widgets: {}};
@@ -139,7 +139,7 @@ try {
       await until(extPage, () => extPage.evaluate(id => { const el = document.getElementById(id); return Boolean(el && !el.hidden && el.offsetHeight); }, section), Boolean);
       await settled(extPage);
       await extPage.locator('.main-panel').evaluate(el => el.scrollTo(0, 0)).catch(() => {});
-      // 六个分组：侧栏分组高亮；组内有多个分区时，对应标签也要高亮。
+      // 七个分组：侧栏分组高亮；组内有多个分区时，对应标签也要高亮。
       check(`options 分区激活[${section}]`, await extPage.evaluate(name => { const tab = document.querySelector(`[data-section="${name}"]`); return Boolean(document.querySelector('[data-group].active')) && (!tab || tab.classList.contains('active')); }, section));
       const filled = await extPage.evaluate(name => {
         const el = document.getElementById(name);
@@ -328,24 +328,30 @@ try {
         const lint=await layoutLint(extPage,'.options-body');
         if(!lintClean(lint))dirty.push({key,...lint});
         if(key==='mt:deeplx'){
-          const heights=await extPage.evaluate(()=>[...document.querySelectorAll('#translation-engines .route-row')].map(el=>Math.round(el.getBoundingClientRect().height)));
-          check(`机翻场景行保持紧凑[${theme}/${width}px]`,heights.length===5&&Math.max(...heights)<=100,JSON.stringify(heights));
           await shot(extPage,`options-mt-${theme}-${width}`);
-          // 任务分配是服务目录下方的全局卡片：两组分配都在里面、不在单个服务的详情里，每行左标签右下拉框，不再留出大段空白。
+          // 任务分配是「模型服务」下单独的标签页：两组分配都在里面、不在单个服务的详情里，每行左标签右下拉框，不再留出大段空白。
+          await extPage.evaluate(()=>{location.hash='#routing';});
+          await until(extPage,()=>extPage.evaluate(()=>Boolean(document.querySelector('#routing:not([hidden]) #task-assignment')?.offsetHeight)),Boolean);
+          await settled(extPage);
           const tasks=await extPage.evaluate(()=>{
             const card=document.querySelector('#task-assignment');
             const rows=[...document.querySelectorAll('#task-assignment .route-row')];
+            const engineRows=[...document.querySelectorAll('#translation-engines .route-row')];
             return {
               global:Boolean(card&&!card.closest('.service-detail')&&card.querySelector('#translation-engines')&&card.querySelector('#api-routing')),
               visible:Boolean(card&&card.getClientRects().length&&!document.querySelector('#api-routing').hidden),
+              engines:engineRows.length,
               rows:rows.length,
               tallest:Math.max(0,...rows.map(row=>Math.round(row.getBoundingClientRect().height))),
               usageInDiagnostics:Boolean(document.querySelector('#diagnostics #usage-stats-totals'))&&!document.querySelector('#service #usage-stats-totals'),
             };
           });
-          check(`任务分配合成一张全局卡，行内紧凑[${theme}/${width}px]`,tasks.global&&tasks.visible&&tasks.rows===10&&tasks.tallest<=100&&tasks.usageInDiagnostics,JSON.stringify(tasks));
-          if(width===1440)await extPage.locator('#task-assignment').evaluate(el=>el.scrollIntoView({block:'start'}));
-          if(width===1440){await settled(extPage);await shot(extPage,`options-task-assignment-${theme}`);}
+          check(`任务分配单独成页，两组分配都在、行内紧凑[${theme}/${width}px]`,tasks.global&&tasks.visible&&tasks.engines===5&&tasks.rows===10&&tasks.tallest<=100&&tasks.usageInDiagnostics,JSON.stringify(tasks));
+          const routingLint=await layoutLint(extPage,'.options-body');
+          if(!lintClean(routingLint))dirty.push({key:'routing',...routingLint});
+          if(width===1440){await extPage.locator('.main-panel').evaluate(el=>el.scrollTo(0,0));await settled(extPage);await shot(extPage,`options-task-assignment-${theme}`);}
+          await extPage.evaluate(()=>{location.hash='#service';});
+          await until(extPage,()=>extPage.evaluate(()=>Boolean(document.querySelector('#service:not([hidden])')?.offsetHeight)),Boolean);
         }
       }
       check(`机器翻译全部表单版式[${theme}/${width}px]`,dirty.length===0,JSON.stringify(dirty).slice(0,800));

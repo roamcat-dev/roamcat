@@ -2,8 +2,8 @@
  * @file src/pages/options/shell.js
  * 文件职责：设置页静态分区模板——最初从
  *   extension/ui/options.html 机械切片生成（切片脚本已移除）；id/控件契约与原页完全一致。
- * 主要内容：无绑定静态模板（动态内容由 options-controller.js 命令式填充）；侧栏为五个分组，
- *   运行状态（nowStatus）改为主区顶部一行，原底栏的导出按钮并入页头；
+ * 主要内容：无绑定静态模板（动态内容由 options-controller.js 命令式填充）；侧栏分组导航由 options-app 按 GROUPS
+ *   生成后传入 shellTop，搜索框下方是设置搜索的结果列表；运行状态（nowStatus）是「阅读」页顶部一行；
  *   分区可见性由 options-app 统一驱动。
  * 模块边界：纯展示模板。
  *
@@ -17,7 +17,7 @@ import {heroArt} from '../../components/hero-art.js';
 import {icon} from '../../components/icons.js';
 import {t} from '../../i18n-runtime.js';
 
-export const shellTop = html`
+export const shellTop = nav => html`
   <!-- Left Minimalist Swiss Sidebar -->
   <aside class="sidebar" data-purpose="sidebar-navigation">
       <button type="button" id="sidebar-collapse-btn" class="sidebar-collapse-btn" title="${t('opt.collapseSidebar')}" aria-label="${t('opt.collapseSidebar')}">
@@ -30,7 +30,7 @@ export const shellTop = html`
         <div class="sidebar-brand-lockup" data-purpose="brand-header">
           <div class="sidebar-brand-left">
             <div class="sidebar-brand-icon" id="sidebar-brand-logo" title="${t('common.brand')}">
-              <img class="rc-logo-light" src="../icons/roamcat-light.svg" width="26" height="26" alt="${t('common.brand')}" style="border-radius:4px;"><img class="rc-logo-dark" src="../icons/roamcat.svg" width="26" height="26" alt="${t('common.brand')}" style="display:block;border-radius:4px;">
+              <img class="rc-logo-light" src="../icons/roamcat-light.svg" width="26" height="26" alt="${t('common.brand')}"><img class="rc-logo-dark" src="../icons/roamcat.svg" width="26" height="26" alt="${t('common.brand')}">
             </div>
             <div class="brand-info-wrap">
               <div class="brand-title-row">
@@ -51,31 +51,11 @@ export const shellTop = html`
           <input id="sidebar-search" type="search" placeholder="${t('opt.searchPlaceholder')}" aria-label="${t('opt.searchPlaceholder')}" autocomplete="off" spellcheck="false">
           <span class="sidebar-search-kbd">Ctrl+K</span>
         </label>
+        <ul id="sidebar-search-results" class="sidebar-search-results" aria-label="${t('opt.searchResults')}" hidden></ul>
         <p id="sidebar-search-empty" class="sidebar-search-empty" hidden>${t('opt.searchEmpty')}</p>
 
-        <!-- 六个分组：阅读 / 网站 / 视频与直播 / 模型服务 / 词汇与记录 / 更多；组内多个分区由页头的标签切换 -->
-        <nav class="sidebar-nav-menu" aria-label="${t('opt.settingsNav')}" data-purpose="nav-menu">
-          <div class="nav-group">
-            <a href="#assistance" data-group="reading" class="cyber-nav-item" data-tooltip="${t('opt.group5.reading')}">
-              <div class="nav-item-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"></path><path d="M20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"></path></svg></span><span class="nav-text">${t('opt.group5.reading')}</span></div>
-            </a>
-            <a href="#sites" data-group="sites" class="cyber-nav-item" data-tooltip="${t('opt.group5.sites')}">
-              <div class="nav-item-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg></span><span class="nav-text">${t('opt.group5.sites')}</span></div>
-            </a>
-            <a href="#video" data-group="video" class="cyber-nav-item" data-tooltip="${t('opt.group5.video')}" data-video-feature hidden>
-              <div class="nav-item-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="M10 9.5v5l4.5-2.5z"></path></svg></span><span class="nav-text">${t('opt.group5.video')}</span></div>
-            </a>
-            <a href="#service" data-group="service" class="cyber-nav-item" data-tooltip="${t('opt.group5.service')}">
-              <div class="nav-item-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="3"></rect><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"></path></svg></span><span class="nav-text">${t('opt.group5.service')}</span></div>
-            </a>
-            <a href="#terms" data-group="vocab" class="cyber-nav-item" data-tooltip="${t('opt.group5.vocab')}">
-              <div class="nav-item-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7"></path></svg></span><span class="nav-text">${t('opt.group5.vocab')}</span></div>
-            </a>
-            <a href="#privacy" data-group="more" class="cyber-nav-item" data-tooltip="${t('opt.group5.more')}">
-              <div class="nav-item-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg></span><span class="nav-text">${t('opt.group5.more')}</span></div>
-            </a>
-          </div>
-        </nav>
+        <!-- 七个分组：阅读 / 网站 / 视频与直播 / 模型服务 / 词汇与记录 / 数据与隐私 / 帮助；组内多个分区由页头的标签切换 -->
+        ${nav}
       </div>
     </aside>
 
@@ -110,7 +90,7 @@ export const mainToolbar = html`
           <div class="toolbar-breadcrumb">
             <span id="toolbar-category-title">${t('opt.toolbarRoot')}</span>
             <span class="breadcrumb-sep">/</span>
-            <span id="toolbar-breadcrumb-title" class="breadcrumb-current">${t('opt.nav.assist')}</span>
+            <span id="toolbar-breadcrumb-title" class="breadcrumb-current">${t('opt.tab.lookup')}</span>
           </div>
         </div>
         <div class="toolbar-right">
@@ -151,17 +131,8 @@ export const heroBlock = html`
             <h1 id="section-title" class="hero-title" tabindex="-1">${t('opt.group5.reading')}</h1>
             <p id="hero-desc" class="hero-desc">${t('opt.group5.readingDesc')}</p>
           </div>
-          <!-- 原底栏的「导出规则包」：导出的是网站与领域规则，只在「网站」页显示。 -->
-          <div class="hero-actions">
-            <button type="button" id="footer-export-rules" class="secondary-button hero-export">${t('opt.footerExport')}</button>
-          </div>
-
         </header>
         <p id="global-error" class="notice error" role="alert" hidden></p>
-
-        <!-- ========================================================= -->
-        <!-- SIGNATURE SECTION: The Reference Ticket / 随心阅 Stamp Card -->
-        <!-- ========================================================= -->
 `;
 
 export const shellDialog = html`
@@ -197,7 +168,7 @@ export const shellDialog = html`
           </div>
         </div>
         <div class="stamp-dialog-footer">
-          <button type="button" id="stamp-modal-goto-pet" class="secondary-button" style="display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-1, 12px);padding:6px 14px;border-radius:4px;cursor:pointer;">
+          <button type="button" id="stamp-modal-goto-pet" class="secondary-button stamp-dialog-pet">
             ${icon('paw', {size: 14})}<span>${t('opt.stampGotoPet')}</span>
           </button>
           <button type="button" class="js-open-welcome stamp-dialog-link">
