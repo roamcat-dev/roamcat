@@ -425,6 +425,20 @@ try {
 
   const iconUrl = await execInTab(`() => chrome.runtime.getURL('icons/roamcat.svg')`);
 
+  // 浮层卡片统一规格：圆角取 --radius-xl，关闭钮是右上角 24px 图标 X（不带文字），文字按钮高度只有 28 / 32 两档。
+  // FLOAT_SHAPE 在页面里量一张卡（root 是 shadow root 或 document），floatOk 判定。
+  const FLOAT_SHAPE = `(root, card, close, buttons) => {
+    const box = root.querySelector(card), cs = getComputedStyle(box), b = box.getBoundingClientRect(), x = close ? root.querySelector(close) : null;
+    const xr = x?.getBoundingClientRect();
+    return {radius: cs.borderTopLeftRadius, token: cs.getPropertyValue('--radius-xl').trim(),
+      close: x ? {size: Math.round(xr.width) + 'x' + Math.round(xr.height), text: x.textContent.trim(), icon: Boolean(x.querySelector('svg')),
+        corner: xr.right >= b.right - 32 && xr.top <= b.top + 32} : null,
+      heights: buttons ? [...root.querySelectorAll(buttons)].filter(el => el.getClientRects().length).map(el => Math.round(el.getBoundingClientRect().height)) : []};
+  }`;
+  const floatOk = shape => Boolean(shape) && shape.token === '12px' && shape.radius === shape.token
+    && (!shape.close || (shape.close.size === '24x24' && !shape.close.text && shape.close.icon && shape.close.corner))
+    && shape.heights.every(h => h === 28 || h === 32);
+
   // B1. 词卡 HUD —— word / passage / error 三种形态 × 双主题
   for (const theme of THEMES) {
     await execInTab(`() => {
@@ -448,6 +462,8 @@ try {
     await settled(tab);
     const cardRect = await execInTab(`() => { const r = window.__probe.card.host.getBoundingClientRect(); return {w: Math.round(r.width), h: Math.round(r.height)}; }`);
     check(`词卡 HUD 尺寸正常[${theme}]`, cardRect.w > 240 && cardRect.h > 80, JSON.stringify(cardRect));
+    const cardShape = await execInTab(`() => (${FLOAT_SHAPE})(window.__probe.card.shadow, '.card', '.close-x', '.hud-action')`);
+    check(`词卡统一规格：圆角 --radius-xl、右上角 24px 图标 X、按钮 28/32[${theme}]`, floatOk(cardShape), JSON.stringify(cardShape));
     await shotLocator(tab.locator('[data-roamcat-ui="card"]'), `widget-wordcard-${theme}`);
   }
   await execInTab(`() => {
@@ -484,6 +500,8 @@ try {
   const detailVisible = await until(tab, () => execInTab(`() => !window.__probe.status.detail.hidden && window.__probe.status.more.getAttribute('aria-expanded') === 'true'`), Boolean);
   await settled(tab);
   check('任务状态条详情展开', Boolean(detailVisible));
+  const statusShape = await execInTab(`() => (${FLOAT_SHAPE})(window.__probe['task-status'].shadow, '.panel', '.close', '.more')`);
+  check('任务状态条统一规格：圆角 --radius-xl、右上角 24px 图标 X、按钮 28/32', floatOk(statusShape), JSON.stringify(statusShape));
   await shotLocator(tab.locator('[data-roamcat-ui="task-status"]'), 'widget-taskstatus-detail');
   await execInTab(`() => { const s = window.__probe.status; s.indicator.dataset.busy = 'false'; s.indicator.dataset.error = 'true'; s.panel.dataset.error = 'true'; s.label.textContent = '阅读辅助遇到问题'; s.collapse(); return true; }`);
   await settled(tab);
@@ -537,6 +555,8 @@ try {
     return [...shadow.querySelectorAll('.role')].map(chip => { const fg = lum(rgb(getComputedStyle(chip).color)); const [hi, lo] = fg > bg ? [fg, bg] : [bg, fg]; return {text: chip.textContent, ratio: Math.round((hi + 0.05) / (lo + 0.05) * 10) / 10}; });
   }`);
   check('解构卡成分标签对比度 ≥4.5', chipContrast.length >= 5 && chipContrast.every(item => item.ratio >= 4.5), JSON.stringify(chipContrast));
+  const detailShape = await execInTab(`() => (${FLOAT_SHAPE})(window.__probe['sentence-detail'].shadow, 'section', '.close', '')`);
+  check('解构卡统一规格：圆角 --radius-xl、右上角 24px 图标 X（不再是文字「关闭」）', floatOk(detailShape), JSON.stringify(detailShape));
   await shotLocator(tab.locator('[data-roamcat-ui="sentence-detail"]'), 'widget-sentence-detail');
   await execInTab(`() => window.__probe['sentence-detail'].host.remove()`);
 
@@ -547,6 +567,8 @@ try {
     return true;
   }`);
   await settled(tab);
+  const knownShape = await execInTab(`() => (${FLOAT_SHAPE})(window.__probe['known-feedback'].shadow, '.panel', '', 'button')`);
+  check('已认识提示统一规格：圆角 --radius-xl、按钮 28/32', floatOk(knownShape), JSON.stringify(knownShape));
   await shotLocator(tab.locator('[data-roamcat-ui="known-feedback"]'), 'widget-known-feedback');
   await execInTab(`() => window.__probe['known-feedback'].host.remove()`);
 
@@ -584,10 +606,46 @@ try {
     if (barVisible) {
       await settled(tab);
       check('选区操作条出现', true);
+      const barShape = await execInTab(`() => (${FLOAT_SHAPE})(document, '[data-roamcat-ui="passage-action"]', '', '[data-roamcat-ui="passage-action"] > button')`);
+      check('选区操作条统一规格：圆角 --radius-xl、按钮 32（原 36）', floatOk(barShape) && barShape.heights.length > 0 && barShape.heights.every(h => h === 32), JSON.stringify(barShape));
       await shotLocator(tab.locator('[data-roamcat-ui="passage-action"]'), 'widget-selection-bar');
       await execInTab(`() => { document.querySelector('[data-roamcat-ui="passage-action"]')?.remove(); getSelection()?.removeAllRanges(); return true; }`);
     } else warn('选区操作条未出现', '可能阅读辅助在该页默认关闭');
   } else warn('选区操作条未测试', 'fixture 无段落');
+
+  // B6. 扩展重载提示：内容脚本读不到 manifest 即视为扩展已重载，真实点击页面触发侦察后右下角出现提示条。
+  // 提示条在 closed shadow 里，先在内容脚本的隔离世界里接住 attachShadow 拿到根节点；量完、截完图再复原并移除。
+  await execInTab(`() => {
+    const probe = window.__probe ||= {}, attach = Element.prototype.attachShadow;
+    probe.reload = {attach, getManifest: chrome.runtime.getManifest};
+    Element.prototype.attachShadow = function (init) { const root = attach.call(this, init); if (this.id === 'roamcat-reload-toast') probe.reload.shadow = root; return root; };
+    chrome.runtime.getManifest = () => null;
+    return true;
+  }`);
+  const reloadShown = await until(tab, async () => { await tab.mouse.click(24, 980); return execInTab(`() => Boolean(window.__probe.reload.shadow)`); }, Boolean, 5000);
+  check('扩展重载后点击页面出现刷新提示', Boolean(reloadShown));
+  if (reloadShown) {
+    await settled(tab);
+    const reloadShape = await execInTab(`() => {
+      const root = window.__probe.reload.shadow, primary = root.querySelector('.primary'), ink = document.createElement('i');
+      ink.style.color = 'var(--action)'; root.append(ink);
+      const action = getComputedStyle(ink).color; ink.remove();
+      return {...(${FLOAT_SHAPE})(root, '.toast', '.close', 'button:not(.close)'), primary: getComputedStyle(primary).backgroundColor, action};
+    }`);
+    check('重载提示统一规格：圆角 --radius-xl、24px 图标 X、「刷新页面」墨色实心主按钮', floatOk(reloadShape) && reloadShape.primary === reloadShape.action, JSON.stringify(reloadShape));
+    for (const theme of THEMES) {
+      await execInTab(`() => { document.querySelector('#roamcat-reload-toast').setAttribute('data-theme', '${theme}'); return true; }`);
+      await settled(tab);
+      await shotLocator(tab.locator('#roamcat-reload-toast'), `widget-reload-toast-${theme}`);
+    }
+  }
+  await execInTab(`() => {
+    const saved = window.__probe.reload;
+    Element.prototype.attachShadow = saved.attach;
+    chrome.runtime.getManifest = saved.getManifest;
+    document.querySelector('#roamcat-reload-toast')?.remove();
+    return true;
+  }`);
 
   // ========== C. 伴读猫：dock / 气泡 / 引用 / 精华窗 / 缩放，双主题 ==========
   const bubbleInside = () => execInTab(`() => {
@@ -611,7 +669,7 @@ try {
     const r = el => { const b = el.getBoundingClientRect(); return {l: b.left, t: b.top, r: b.right, b: b.bottom}; };
     const btn = sr.querySelector('#quick-summary'), tip = getComputedStyle(btn, '::after');
     return {vw: innerWidth, vh: innerHeight, host: r(host), bar: r(sr.querySelector('.roamcat-toolbar')),
-      btns: ['#quick-options', '#quick-summary', '#quick-reading', '#roamcat-flip-btn'].map(s => r(sr.querySelector(s))),
+      btns: ['#roamcat-flip-btn', '#quick-reading', '#quick-summary', '#quick-options'].map(s => r(sr.querySelector(s))),
       zoom: r(sr.querySelector('#roamcat-zoom-controls')), speaking: sr.querySelector('#cat-speech').classList.contains('speaking'),
       tip: {text: btn.dataset.tip, opacity: Number(tip.opacity)}, speech: sr.querySelector('#speech-text').textContent, bubbleCls: sr.querySelector('#cat-speech').className};
   }`);
@@ -620,6 +678,15 @@ try {
   check('伴读猫与工具栏分开：工具栏独立贴在屏幕右缘、竖排一列、不压猫', Math.abs(toolbarLayout.bar.r - toolbarLayout.vw) < 1 && !boxesOverlap(toolbarLayout.bar, toolbarLayout.host)
     && toolbarLayout.btns.every((b, i) => Math.abs(b.l - toolbarLayout.btns[0].l) < 1 && (i === 0 || b.t >= toolbarLayout.btns[i - 1].b)), JSON.stringify(toolbarLayout));
   check('伴读猫缩放胶囊在猫内侧且不压工具栏', toolbarLayout.zoom.r <= toolbarLayout.host.l && !boxesOverlap(toolbarLayout.zoom, toolbarLayout.bar), JSON.stringify(toolbarLayout));
+  // 常用的两个开关在上、最少用的设置在最后并用分隔线隔开；三个功能按钮的悬停提示都写快捷键，按钮同为 28px。
+  const toolbarGroups = await execInTab(`() => {
+    const bar = document.querySelector('#roamcat-pet-host').shadowRoot.querySelector('.roamcat-toolbar');
+    return {order: [...bar.children].map(el => el.id || el.className), tips: [...bar.querySelectorAll('button')].map(b => b.dataset.tip),
+      sizes: [...bar.querySelectorAll('button')].map(b => Math.round(b.getBoundingClientRect().width) + 'x' + Math.round(b.getBoundingClientRect().height))};
+  }`);
+  check('伴读猫工具栏顺序：双语翻译 → 阅读辅助 → 提炼摘要 │ 设置', toolbarGroups?.order.join() === 'toolbar-grip,roamcat-flip-btn,quick-reading,quick-summary,toolbar-sep,quick-options', JSON.stringify(toolbarGroups));
+  check('伴读猫工具栏提示写快捷键 Alt+Shift+T / S / M、按钮 28px', /Alt\+Shift\+T/.test(toolbarGroups?.tips[0]) && /Alt\+Shift\+S/.test(toolbarGroups?.tips[1])
+    && /Alt\+Shift\+M/.test(toolbarGroups?.tips[2]) && toolbarGroups.sizes.every(size => size === '28x28'), JSON.stringify(toolbarGroups));
   const sumBox = await tab.locator('#quick-summary').boundingBox();
   for (const theme of ['light', 'dark']) {
     if (theme === 'dark') {
@@ -631,7 +698,7 @@ try {
     await tab.mouse.move(sumBox.x + sumBox.width / 2, sumBox.y + sumBox.height / 2);
     const hovered = await until(tab, petLayout, g => g.tip.opacity > 0.9);
     await settled(tab);
-    check(`工具栏按钮悬停显示自带提示、不动猫的气泡（${theme}）`, hovered.tip.opacity > 0.9 && hovered.tip.text === '提炼整篇精华'
+    check(`工具栏按钮悬停显示自带提示、不动猫的气泡（${theme}）`, hovered.tip.opacity > 0.9 && hovered.tip.text === '提炼摘要 (Alt+Shift+M)'
       && hovered.speech === beforeHover.speech && hovered.bubbleCls === beforeHover.bubbleCls,
       JSON.stringify({tip: hovered.tip, speech: [beforeHover.speech, hovered.speech], cls: [beforeHover.bubbleCls, hovered.bubbleCls]}));
     const x = Math.max(0, Math.min(hovered.host.l, hovered.bar.l) - 240), y = Math.max(0, hovered.bar.t - 40);
@@ -655,7 +722,38 @@ try {
   await until(tab, () => execInTab(`() => document.querySelector('#roamcat-pet-host').shadowRoot.querySelector('#cat-speech').classList.contains('speaking')`), Boolean);
   await settled(tab);
   check('伴读猫气泡在视口内', Boolean(await bubbleInside()));
+  const bubbleShape = await execInTab(`() => (${FLOAT_SHAPE})(document.querySelector('#roamcat-pet-host').shadowRoot, '#cat-speech', '#speech-close-btn', '')`);
+  check('伴读猫气泡统一规格：圆角 --radius-xl、右上角 24px 图标 X', floatOk(bubbleShape), JSON.stringify(bubbleShape));
   await shot(tab, 'pet-bubble');
+  // 忙碌（警示色）与出错（危险色）气泡：颜色取 --warning / --danger，双主题各截一张近景。
+  const bubbleTone = () => execInTab(`() => {
+    const root = document.querySelector('#roamcat-pet-host').shadowRoot, bubble = root.querySelector('#cat-speech'), probe = document.createElement('i');
+    root.append(probe);
+    const tone = name => { probe.style.color = 'var(' + name + ')'; return getComputedStyle(probe).color; };
+    const out = {cls: bubble.className, border: getComputedStyle(bubble).borderTopColor, warning: tone('--warning'), danger: tone('--danger')};
+    probe.remove();
+    return out;
+  }`);
+  for (const theme of THEMES) {
+    if (theme === 'dark') {
+      await tab.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+      await until(tab, () => execInTab(`() => document.querySelector('#roamcat-pet-host').getAttribute('data-theme')`), v => v === 'dark');
+    }
+    for (const [kind, text] of [['busy', '正在解构正文 喵~'], ['error', '辅助服务还没连上，去设置里连接后再试 喵~']]) {
+      await execInTab(`() => globalThis.RoamCatPet.speakStatus(${JSON.stringify(text)}, {${kind}: true, duration: 60000})`);
+      const tone = await until(tab, bubbleTone, v => v.cls.includes('speaking') && v.cls.includes('is-' + kind));
+      await settled(tab);
+      check(`伴读猫${kind === 'busy' ? '忙碌' : '出错'}气泡描边取 ${kind === 'busy' ? '--warning' : '--danger'}[${theme}]`,
+        tone.border === (kind === 'busy' ? tone.warning : tone.danger), JSON.stringify(tone));
+      const box = await tab.locator('#cat-speech').boundingBox();
+      if (box) {
+        const x = Math.max(0, box.x - 16), y = Math.max(0, box.y - 16);
+        await tab.screenshot({path: path.join(out, `pet-bubble-${kind}-${theme}.png`), clip: {x, y, width: Math.min(box.width + 32, 1440 - x), height: Math.min(box.height + 120, 1000 - y)}});
+      }
+    }
+  }
+  await tab.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+  await until(tab, () => execInTab(`() => document.querySelector('#roamcat-pet-host').getAttribute('data-theme')`), v => v === 'light');
   await execInTab(`() => globalThis.RoamCatPet.clearStatusSpeech()`);
   await until(tab, () => execInTab(`() => !document.querySelector('#roamcat-pet-host').shadowRoot.querySelector('#cat-speech').classList.contains('speaking')`), Boolean);
 
@@ -681,6 +779,8 @@ try {
   }`);
   await until(tab, () => execInTab(`() => Boolean(document.querySelector('#roamcat-pet-host').shadowRoot.querySelector('.roamcat-summary-window.open'))`), Boolean);
   await settled(tab);
+  const summaryShape = await execInTab(`() => (${FLOAT_SHAPE})(document.querySelector('#roamcat-pet-host').shadowRoot, '.roamcat-summary-window', '#summary-close', '.footer-btn')`);
+  check('摘要窗统一规格：圆角 --radius-xl、右上角 24px 图标 X、按钮 28/32', floatOk(summaryShape), JSON.stringify(summaryShape));
   await shot(tab, 'pet-summary-light');
   await tab.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await until(tab, () => execInTab(`() => document.querySelector('#roamcat-pet-host').getAttribute('data-theme')`), v => v === 'dark');
@@ -753,7 +853,7 @@ try {
     return {lang: I?.lang(), tip: sr?.querySelector('#quick-summary')?.dataset.tip || '', speech};
   }`), v => v?.lang === 'en' && Boolean(v.speech) && !/[一-鿿]/.test(v.speech), 6000);
   await settled(tab);
-  check('content script 英文档生效', enPet?.lang === 'en' && enPet.tip === 'Summarize article' && !/[一-鿿]/.test(enPet.speech), JSON.stringify(enPet));
+  check('content script 英文档生效', enPet?.lang === 'en' && enPet.tip === 'Summarize (Alt+Shift+M)' &&!/[一-鿿]/.test(enPet.speech), JSON.stringify(enPet));
   await shot(tab, 'pet-en');
 
   for (const page of [extPage, tab]) await page.pump();

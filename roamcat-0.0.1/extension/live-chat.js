@@ -231,7 +231,7 @@
     const shadow = host.attachShadow({mode: 'closed'});
     const tokens = globalThis.RoamCatDesign?.cssFor?.(':host') || '';
     shadow.innerHTML = `<style>${tokens}</style><style>
-      button{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 var(--space-2,8px);border:1px solid transparent;border-radius:var(--radius-medium,6px);background:transparent;color:inherit;font:600 var(--fs-3,14px)/1 var(--ui,sans-serif);cursor:pointer}
+      button{position:relative;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:28px;height:28px;padding:0 var(--space-2,8px);border:1px solid transparent;border-radius:var(--radius-control,6px);background:transparent;color:inherit;font:600 var(--fs-3,14px)/1 var(--ui,sans-serif);cursor:pointer}
       button:hover{background:color-mix(in srgb,currentColor 14%,transparent)}
       button:focus-visible{outline:2px solid var(--accent,#9b8cff);outline-offset:1px}
       button[aria-pressed="true"]{border-color:color-mix(in srgb,var(--accent,#9b8cff) 60%,transparent);color:var(--accent,#9b8cff)}
@@ -278,13 +278,14 @@
     for (const [name, value] of [['all', 'initial'], ['position', 'fixed'], ['z-index', '2147483647'], ['display', 'none']]) host.style.setProperty(name, value, 'important');
     const shadow = host.attachShadow({mode: 'closed'});
     shadow.innerHTML = `<style>${globalThis.RoamCatDesign?.cssFor?.(':host') || ''}</style><style>
-      .tip{display:flex;align-items:flex-start;gap:var(--space-2,8px);box-sizing:border-box;width:max-content;max-width:min(300px,calc(100vw - 16px));padding:8px 6px 8px 12px;border:1px solid var(--line);border-radius:var(--radius-medium,6px);background:var(--surface);color:var(--ink);box-shadow:var(--elev-2);font:500 var(--fs-2,13px)/1.45 var(--ui,sans-serif)}
+      .tip{display:flex;align-items:flex-start;gap:var(--space-2,8px);box-sizing:border-box;width:max-content;max-width:min(300px,calc(100vw - 16px));padding:8px 8px 8px 12px;border:1px solid var(--line);border-radius:var(--radius-xl,12px);background:var(--surface);color:var(--ink);box-shadow:var(--elev-2);font:500 var(--fs-2,13px)/1.45 var(--ui,sans-serif)}
       .tip[data-kind="error"]{border-color:var(--danger,#e5484d)}
       p{margin:0;min-width:0;overflow-wrap:anywhere}
-      button{flex:none;width:22px;height:22px;padding:0;border:0;border-radius:var(--radius-small,4px);background:transparent;color:inherit;font:600 var(--fs-3,14px)/1 var(--ui,sans-serif);opacity:.7;cursor:pointer}
-      button:hover{opacity:1;background:var(--surface-hover)}
+      button{flex:none;display:grid;place-items:center;width:24px;height:24px;margin:-3px -2px -3px 0;padding:0;border:0;border-radius:var(--radius-control,6px);background:transparent;color:var(--muted);cursor:pointer}
+      button:hover{background:var(--surface-hover);color:var(--ink)}
+      button svg{display:block;width:14px;height:14px}
       button:focus-visible{outline:var(--focus-ring);outline-offset:1px}
-    </style><div class="tip" role="status"><p></p><button type="button" aria-label="${T('c.lc.dismiss')}">×</button></div>`;
+    </style><div class="tip" role="status"><p></p><button type="button" aria-label="${T('c.lc.dismiss')}" title="${T('c.lc.dismiss')}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></div>`;
     shadow.querySelector('button').addEventListener('click', hideTip);
     return {host, box: shadow.querySelector('.tip'), text: shadow.querySelector('p')};
   }

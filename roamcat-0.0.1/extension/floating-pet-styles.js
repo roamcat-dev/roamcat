@@ -246,7 +246,6 @@
       }
 
       .roamcat-pet-widget.docked:hover .cat-peeking-svg,
-      .roamcat-pet-widget.docked.peek-out .cat-peeking-svg,
       .roamcat-pet-widget.docked.has-speech .cat-peeking-svg,
       .roamcat-pet-widget.docked:has(.cat-speech-bubble.speaking) .cat-peeking-svg {
         scale: 1.1;
@@ -264,7 +263,7 @@
         border-radius: 50%;
         background: var(--pet-btn-face, var(--pet-surface-elevated, #ffffff));
         border: 1px solid var(--pet-btn-rim, var(--pet-line, #e2e8f0));
-        box-shadow: var(--pet-btn-cast, 0 4px 12px rgba(0, 0, 0, 0.1));
+        box-shadow: var(--elev-2, var(--pet-btn-cast));
         display: none;
         align-items: center;
         justify-content: center;
@@ -357,9 +356,9 @@
       /* =========================================================
          竖排快捷工具栏（参照陪读蛙的悬浮按钮）：与猫分开的独立挂件，贴在屏幕右缘（或拖到
          左缘吸附），默认上沿在视口一半处，可上下拖动，位置单独记忆（placeToolbar /
-         bindToolbarDrag）。不跟猫走，猫贴边探头时照常显示。自上而下为设置 / 提炼 / 阅读开关 /
-         双语翻译，每颗按钮自带悬停提示（data-tip，向页面内侧弹出）。贴着屏幕的一侧不留圆角与
-         描边，像从屏幕边伸出的小标签；离开屏幕边（Twitch 避让、拖动中）改成完整胶囊。
+         bindToolbarDrag）。不跟猫走，猫贴边探头时照常显示。按使用频率自上而下为双语翻译 / 阅读辅助 /
+         提炼摘要，分隔线下是最少用的设置；每颗按钮自带悬停提示（data-tip，向页面内侧弹出，三个功能写快捷键）。
+         贴着屏幕的一侧不留圆角与描边，像从屏幕边伸出的小标签；离开屏幕边（Twitch 避让、拖动中）改成完整胶囊。
          磨砂面见下方与缩放胶囊共用的规则。
          ========================================================= */
       .roamcat-toolbar {
@@ -371,7 +370,7 @@
         align-items: center;
         gap: 2px;
         padding: 3px;
-        border-radius: 17px 0 0 17px;
+        border-radius: 18px 0 0 18px;
         /* 与摘要窗同层、DOM 在它前面：从工具栏打开的摘要窗盖得住按钮的悬停提示。 */
         z-index: 2147483641;
         pointer-events: auto;
@@ -380,10 +379,10 @@
         user-select: none;
       }
       .roamcat-toolbar.is-left {
-        border-radius: 0 17px 17px 0;
+        border-radius: 0 18px 18px 0;
       }
       .roamcat-toolbar:is(.kept-out, .dragging) {
-        border-radius: 17px;
+        border-radius: 18px;
       }
       .roamcat-toolbar.dragging {
         cursor: grabbing;
@@ -396,6 +395,14 @@
         margin: 3px 0 2px;
         border-radius: 2px;
         background: color-mix(in srgb, var(--pet-muted, #6a655c) 45%, transparent);
+      }
+      /* 分组分隔线：上面三颗是阅读功能，下面是设置。 */
+      .toolbar-sep {
+        display: block;
+        width: 16px;
+        height: 1px;
+        margin: 3px 0;
+        background: var(--pet-line, #e6e3dc);
       }
 
       .roamcat-pet-widget.dock-open .roamcat-zoom-controls {
@@ -459,8 +466,8 @@
           visibility 0s 0s;
       }
       .zoom-btn {
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
         border-radius: 50%;
         border: none;
         background: transparent;
@@ -560,8 +567,8 @@
          主色淡底 + 主色细环 + 主色字形，不用实心色块。 */
       .roamcat-quick-btn {
         position: relative;
-        width: 26px;
-        height: 26px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         background: transparent;
         border: 0;
@@ -635,7 +642,7 @@
         right: calc(100% + 10px);
         translate: 4px -50%;
         padding: 4px 9px;
-        border-radius: 8px;
+        border-radius: var(--radius-control, 6px);
         background: var(--pet-surface-elevated, #ffffff);
         color: var(--pet-ink, #1c1b18);
         border: 1px solid var(--pet-btn-rim, rgba(28, 27, 24, 0.12));
@@ -701,8 +708,8 @@
         transform: translateX(calc(-50% + var(--bubble-shift-x, 0px))) translateY(4px);
         background: var(--pet-surface-elevated, #ffffff);
         color: var(--pet-ink, #111827);
-        border: 1.5px solid var(--pet-btn-rim, var(--pet-line, #e5e7eb));
-        border-radius: 12px;
+        border: 1px solid var(--pet-btn-rim, var(--pet-line, #e5e7eb));
+        border-radius: var(--radius-xl, 12px);
         padding: 6px 10px;
         font-size: var(--fs-1, 12px);
         font-weight: 600;
@@ -710,7 +717,7 @@
         overflow-wrap: anywhere;
         line-height: 1.35;
         text-align: left;
-        box-shadow: var(--pet-btn-cast, 0 4px 16px rgba(0,0,0,0.12));
+        box-shadow: var(--elev-2, var(--pet-shadow-md));
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1), border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
@@ -792,145 +799,31 @@
         --tail-bg: var(--pet-surface-elevated, #ffffff);
       }
 
-      /* Busy / Loading status speaking (e.g. 正在解构正文 喵~) - Light default */
-      .cat-speech-bubble.speaking.is-busy {
-        border-color: #d97706 !important;
-        background: #fffbeb !important;
-        color: #78350f !important;
-        box-shadow: 0 4px 16px rgba(217, 119, 6, 0.18) !important;
-      }
-      .cat-speech-bubble.speaking.is-busy .speech-text {
-        color: #78350f !important;
-        font-weight: 600 !important;
-      }
-      .cat-speech-bubble.speaking.is-busy {
-        --tail-bg: #fffbeb;
-      }
-      .cat-speech-bubble.speaking.is-busy .speech-spinner {
-        display: inline-block;
-        border: 2px solid rgba(217, 119, 6, 0.25);
-        border-top-color: #d97706;
-      }
-      .cat-speech-bubble.speaking.is-busy .speech-close-btn {
-        color: #92400e;
-      }
-      .cat-speech-bubble.speaking.is-busy .speech-close-btn:hover {
-        color: #78350f;
-        background: rgba(217, 119, 6, 0.15);
-      }
-
-      /* Busy / Loading speaking - Dark theme (Relingo Obsidian + Warm Amber) */
-      :host([data-theme="dark"]) .cat-speech-bubble.speaking.is-busy {
-        border-color: #f0a63c !important;
-        background: #1c2531 !important;
-        color: #f3e4c0 !important;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(240, 166, 60, 0.3) !important;
-      }
-      :host([data-theme="dark"]) .cat-speech-bubble.speaking.is-busy .speech-text {
-        color: #f3e4c0 !important;
-        font-weight: 600 !important;
-      }
-      :host([data-theme="dark"]) .cat-speech-bubble.speaking.is-busy {
-        --tail-bg: #1c2531;
-      }
-      :host([data-theme="dark"]) .cat-speech-bubble.speaking.is-busy .speech-spinner {
-        border: 2px solid rgba(240, 166, 60, 0.25);
-        border-top-color: #f0a63c;
-      }
-      :host([data-theme="dark"]) .cat-speech-bubble.speaking.is-busy .speech-close-btn {
-        color: #f0a63c;
-      }
-      :host([data-theme="dark"]) .cat-speech-bubble.speaking.is-busy .speech-close-btn:hover {
-        color: #f7bc55;
-        background: rgba(240, 166, 60, 0.15);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :host(:not([data-theme="light"])) .cat-speech-bubble.speaking.is-busy {
-          border-color: #f0a63c !important;
-          background: #1c2531 !important;
-          color: #f3e4c0 !important;
-          box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(240, 166, 60, 0.3) !important;
-        }
-        :host(:not([data-theme="light"])) .cat-speech-bubble.speaking.is-busy .speech-text {
-          color: #f3e4c0 !important;
-          font-weight: 600 !important;
-        }
-        :host(:not([data-theme="light"])) .cat-speech-bubble.speaking.is-busy {
-          --tail-bg: #1c2531;
-        }
-        :host(:not([data-theme="light"])) .cat-speech-bubble.speaking.is-busy .speech-spinner {
-          border: 2px solid rgba(240, 166, 60, 0.25);
-          border-top-color: #f0a63c;
-        }
-        :host(:not([data-theme="light"])) .cat-speech-bubble.speaking.is-busy .speech-close-btn {
-          color: #f0a63c;
-        }
-        :host(:not([data-theme="light"])) .cat-speech-bubble.speaking.is-busy .speech-close-btn:hover {
-          color: #f7bc55;
-          background: rgba(240, 166, 60, 0.15);
-        }
-      }
-
-      /* Error state - Light default */
-      .cat-speech-bubble.speaking.is-error {
-        border-color: #c8462e !important;
-        background: #fef2f2 !important;
-        color: #991b1b !important;
-        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.16) !important;
-      }
-      .cat-speech-bubble.speaking.is-error .speech-text {
-        color: #991b1b !important;
-        font-weight: 600 !important;
+      /* 忙碌（如「正在解构正文 喵~」）与出错：主题面板色上叠一成 --warning / --danger 作底，描边、文字、
+         转圈与关闭钮取同一色。两个 token 随宿主 data-theme 切换，亮暗不再各写一份。 */
+      .cat-speech-bubble.speaking:is(.is-busy, .is-error) {
+        --tone: var(--warning, #9a5806);
+        --tail-bg: color-mix(in srgb, var(--tone) 10%, var(--pet-surface-elevated, #ffffff));
+        border-color: var(--tone);
+        background: var(--tail-bg);
       }
       .cat-speech-bubble.speaking.is-error {
-        --tail-bg: #fef2f2;
+        --tone: var(--danger, #b42318);
       }
-      .cat-speech-bubble.speaking.is-error .speech-close-btn {
-        color: #b91c1c;
+      .cat-speech-bubble.speaking:is(.is-busy, .is-error) .speech-text,
+      .cat-speech-bubble.speaking:is(.is-busy, .is-error) .speech-close-btn {
+        color: var(--tone) !important;
       }
-      .cat-speech-bubble.speaking.is-error .speech-close-btn:hover {
-        color: #7f1d1d;
-        background: rgba(239, 68, 68, 0.12);
-      }
-
-      /* Error state - Dark theme */
-      :host([data-theme="dark"]) .cat-speech-bubble.speaking.is-error {
-        border-color: #f0756a !important;
-        background: #251719 !important;
-        color: #f7b3ad !important;
-        box-shadow: 0 4px 18px rgba(240, 117, 106, 0.25) !important;
-      }
-      :host([data-theme="dark"]) .cat-speech-bubble.speaking.is-error .speech-text {
-        color: #f7b3ad !important;
-        font-weight: 600 !important;
-      }
-      :host([data-theme="dark"]) .cat-speech-bubble.speaking.is-error {
-        --tail-bg: #251719;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :host(:not([data-theme="light"])) .cat-speech-bubble.speaking.is-error {
-          border-color: #f0756a !important;
-          background: #251719 !important;
-          color: #f7b3ad !important;
-          box-shadow: 0 4px 18px rgba(240, 117, 106, 0.25) !important;
-        }
-        :host(:not([data-theme="light"])) .cat-speech-bubble.speaking.is-error .speech-text {
-          color: #f7b3ad !important;
-          font-weight: 600 !important;
-        }
-        :host(:not([data-theme="light"])) .cat-speech-bubble.speaking.is-error {
-          --tail-bg: #251719;
-        }
+      .cat-speech-bubble.speaking:is(.is-busy, .is-error) .speech-close-btn:hover {
+        background: color-mix(in srgb, var(--tone) 14%, transparent);
       }
 
       .speech-spinner {
         display: none;
         width: 11px;
         height: 11px;
-        border: 2px solid rgba(217, 119, 6, 0.25);
-        border-top-color: #d97706;
+        border: 2px solid color-mix(in srgb, var(--warning, #9a5806) 25%, transparent);
+        border-top-color: var(--warning, #9a5806);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
         flex-shrink: 0;
@@ -947,7 +840,7 @@
         line-height: 1.35;
       }
 
-      /* 哲学语录气泡（.quote）：多行排版——中文句 + 英文小字 + 署名，关闭按钮对齐首行。 */
+      /* 哲学语录气泡（.quote）：多行排版——中文句 + 英文小字 + 署名，关闭按钮在右上角。 */
       .cat-speech-bubble.speaking.quote {
         align-items: flex-start;
       }
@@ -963,28 +856,27 @@
         font-size: var(--fs-1, 12px);
         font-weight: 500;
         line-height: 1.45;
-        color: var(--pet-ink-subtle, var(--pet-muted, #64748b));
+        color: var(--pet-muted, #6a655c);
       }
       .cat-speech-bubble .quote-author {
         font-size: var(--fs-1, 12px);
         font-weight: 500;
-        color: var(--pet-ink-subtle, var(--pet-muted, #64748b));
-      }
-      .cat-speech-bubble.speaking.quote .speech-close-btn {
-        margin-top: 1px;
+        color: var(--pet-muted, #6a655c);
       }
 
+      /* 关闭钮与其他浮层同一规格：24px 图标 X、靠右上角；上下负边距让它不把一行字的气泡撑高。 */
       .speech-close-btn {
         display: none;
+        align-self: flex-start;
         background: transparent;
         border: none;
         color: var(--pet-muted, #6b7280);
         cursor: pointer;
         padding: 0;
-        margin-left: 2px;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
+        margin: -4px -6px -4px 0;
+        width: 24px;
+        height: 24px;
+        border-radius: var(--radius-control, 6px);
         align-items: center;
         justify-content: center;
         line-height: 0;
@@ -1001,7 +893,7 @@
 
       .speech-close-btn:hover {
         color: var(--pet-ink, #111827);
-        background: var(--pet-line-subtle);
+        background: var(--pet-tag-bg);
       }
 
       .roamcat-avatar-wrap:hover .cat-speech-bubble:not(.speaking) {
@@ -1377,7 +1269,6 @@
       }
 
       .roamcat-pet-widget.docked:hover .peeking-eyes-open,
-      .roamcat-pet-widget.docked.peek-out .peeking-eyes-open,
       .roamcat-pet-widget.docked.has-speech .peeking-eyes-open,
       .roamcat-pet-widget.docked:has(.cat-speech-bubble.speaking) .peeking-eyes-open,
       .roamcat-avatar-wrap:hover .peeking-eyes-open {
@@ -1386,7 +1277,6 @@
       }
 
       .roamcat-pet-widget.docked:hover .peeking-eyes-squint,
-      .roamcat-pet-widget.docked.peek-out .peeking-eyes-squint,
       .roamcat-pet-widget.docked.has-speech .peeking-eyes-squint,
       .roamcat-pet-widget.docked:has(.cat-speech-bubble.speaking) .peeking-eyes-squint,
       .roamcat-avatar-wrap:hover .peeking-eyes-squint {
@@ -1418,8 +1308,7 @@
       }
 
       /* Paws Micro Grip Reflex */
-      .roamcat-pet-widget.docked:hover .peeking-paw,
-      .roamcat-pet-widget.docked.peek-out .peeking-paw {
+      .roamcat-pet-widget.docked:hover .peeking-paw {
         transform: scale(1.04);
         transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
@@ -1475,28 +1364,6 @@
       }
 
 
-      /* 领域徽章基础样式（摘要窗头部 chip 继续使用该类名，HUD 观感由
-         .summary-header .menu-domain-tag 作用域规则提供） */
-      .menu-domain-tag {
-        font-size: var(--fs-1, 12px);
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: var(--pet-primary-soft);
-        color: var(--pet-primary);
-        font-weight: 500;
-        border: 1px solid var(--pet-line-subtle);
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        white-space: nowrap;
-        flex: none;
-        line-height: 1;
-      }
-      .menu-domain-tag svg {
-        display: block;
-        flex: none;
-      }
-
       /* Summary Card Window — HUD 卡片风格（与查词卡/欢迎页 HUD 同源） */
       .roamcat-summary-window {
         position: fixed;
@@ -1506,8 +1373,8 @@
         background-color: var(--pet-surface);
         background-image: none;
         border: 1px solid var(--pet-line);
-        border-radius: 12px;
-        box-shadow: var(--pet-shadow-lg);
+        border-radius: var(--radius-xl, 12px);
+        box-shadow: var(--elev-2, var(--pet-shadow-lg));
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -1547,26 +1414,30 @@
         flex: none;
       }
 
-      /* 领域徽章 → HUD 标签 chip（仅摘要页头作用域，不影响气泡菜单里的同名类） */
-      .summary-header .menu-domain-tag {
+      /* 摘要窗页头的领域徽章（HUD 标签 chip） */
+      .menu-domain-tag {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: none;
         font: 500 var(--fs-1, 12px)/1.4 var(--ui, var(--sans, system-ui, sans-serif));
         padding: 2px 8px;
         border-radius: 999px;
         background: var(--pet-tag-bg);
-        border: 0;
         color: var(--pet-primary);
         white-space: nowrap;
       }
-      .summary-header .menu-domain-tag svg {
+      .menu-domain-tag svg {
         display: block;
         flex: none;
       }
 
+      /* 页头图标钮（刷新 / 关闭）：与其他浮层的关闭钮同一规格，24px、悬停垫淡底，关闭不再单独变红。 */
       .summary-action-btn,
       .summary-close-btn {
         width: 24px;
         height: 24px;
-        border-radius: 6px;
+        border-radius: var(--radius-control, 6px);
         border: 1px solid transparent;
         background: transparent;
         color: var(--pet-muted);
@@ -1584,18 +1455,16 @@
         display: block;
       }
 
-      .summary-action-btn:hover {
+      .summary-action-btn:hover,
+      .summary-close-btn:hover {
         color: var(--pet-ink);
         background: var(--pet-tag-bg);
       }
-
-      .summary-close-btn {
-        background: transparent;
-      }
-      .summary-close-btn:hover {
-        background: rgba(200, 70, 46, 0.1);
-        border-color: rgba(200, 70, 46, 0.4);
-        color: #c8462e;
+      .summary-action-btn:focus-visible,
+      .summary-close-btn:focus-visible,
+      .footer-btn:focus-visible {
+        outline: 2px solid var(--pet-primary, #9f4d25);
+        outline-offset: 1px;
       }
 
       .summary-body {
@@ -1770,9 +1639,9 @@
         padding: 10px 14px;
         background: var(--pet-tag-bg);
         border: 1px solid var(--pet-line);
-        border-left: 3px solid #c8462e;
-        border-radius: 6px;
-        color: var(--pet-muted-strong, var(--pet-ink));
+        border-left: 3px solid var(--danger, #b42318);
+        border-radius: var(--radius-control, 6px);
+        color: var(--muted-strong, var(--pet-ink));
         font-size: var(--fs-2, 13px);
         display: flex;
         flex-direction: column;
@@ -1782,7 +1651,7 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        color: #c8462e;
+        color: var(--danger, #b42318);
       }
       .summary-error svg {
         display: block;
@@ -1813,10 +1682,10 @@
         gap: 6px;
         height: 28px;
         padding: 0 11px;
-        border-radius: 6px;
+        border-radius: var(--radius-control, 6px);
         border: 1px solid var(--pet-line);
         background: transparent;
-        color: var(--pet-muted-strong, var(--pet-ink));
+        color: var(--muted-strong, var(--pet-ink));
         font-size: var(--fs-1, 12px);
         font-weight: 500;
         cursor: pointer;

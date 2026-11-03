@@ -80,13 +80,13 @@ try {
     } : null;
   }`);
 
-  // 几何：独立的竖排快捷工具栏（自上而下设置 / 提炼 / 阅读 / 双语翻译）与猫、气泡、缩放胶囊、摘要窗的视口矩形。
+  // 几何：独立的竖排快捷工具栏（自上而下双语翻译 / 阅读 / 提炼，分隔线下是设置）与猫、气泡、缩放胶囊、摘要窗的视口矩形。
   const layout = () => petCall(`() => {
     const host = document.querySelector('#roamcat-pet-host'), sr = host.shadowRoot;
     const r = el => { const b = el.getBoundingClientRect(); return {l: Math.round(b.left), t: Math.round(b.top), r: Math.round(b.right), b: Math.round(b.bottom)}; };
     const bar = sr.querySelector('.roamcat-toolbar');
     return {cls: sr.querySelector('.roamcat-pet-widget').className, barCls: bar.className, vw: innerWidth, vh: innerHeight, host: r(host),
-      bar: r(bar), btns: ['#quick-options', '#quick-summary', '#quick-reading', '#roamcat-flip-btn'].map(s => r(sr.querySelector(s))),
+      bar: r(bar), btns: ['#roamcat-flip-btn', '#quick-reading', '#quick-summary', '#quick-options'].map(s => r(sr.querySelector(s))),
       bubble: r(sr.querySelector('#cat-speech')), zoom: r(sr.querySelector('#roamcat-zoom-controls')),
       summary: r(sr.querySelector('.roamcat-summary-window')), barVis: getComputedStyle(bar).visibility};
   }`);
@@ -140,7 +140,7 @@ try {
   const initialReading = await readingState();
   check('初始不加载阅读引擎', initialReading?.contentAlive === false, JSON.stringify(initialReading));
   check('未开启页面时阅读按钮不误亮', initialReading?.btnActive === false && initialReading?.pressed === 'false', JSON.stringify(initialReading));
-  check('未开启页面时阅读按钮提示开启', initialReading?.tip === '阅读辅助已暂停 · 点击开启', JSON.stringify(initialReading));
+  check('未开启页面时阅读按钮提示开启', initialReading?.tip === '阅读辅助已暂停 · 点击开启 (Alt+Shift+S)', JSON.stringify(initialReading));
 
   // ---------- 2. 猫与工具栏分开：工具栏独立贴在屏幕右缘、常驻显示，不压猫 ----------
   const avatarBox = await avatar.boundingBox();
@@ -148,12 +148,14 @@ try {
   const quickStyle = sel => tab.locator(sel).evaluate(el => { const s = getComputedStyle(el); return {opacity: s.opacity, pe: s.pointerEvents, vis: s.visibility}; });
   const shown = s => s.pe === 'auto' && s.vis === 'visible' && Number(s.opacity) > 0.9;
   await tab.mouse.move(720, 500);
-  const idleShown = await Promise.all(['#quick-options', '#quick-summary', '#quick-reading', '.roamcat-flip-btn'].map(sel => until(() => quickStyle(sel), shown)));
+  const idleShown = await Promise.all(['.roamcat-flip-btn', '#quick-reading', '#quick-summary', '#quick-options'].map(sel => until(() => quickStyle(sel), shown)));
   check('快捷按钮常态显示（未悬停、未点猫）', idleShown.every(shown), JSON.stringify(idleShown));
   const home = await until(layout, l => onRightEdge(l) && oneColumn(l));
   const gaps = home ? home.btns.slice(1).map((b, i) => b.t - home.btns[i].b) : [];
   check('工具栏独立贴在屏幕右缘、上沿约在视口一半', onRightEdge(home) && Math.abs(home.bar.t - home.vh * 0.5) <= 2, JSON.stringify(home));
-  check('工具栏竖排一列、自上而下设置/提炼/阅读/双语翻译', oneColumn(home) && gaps.length === 3 && gaps.every(g => g >= 0 && g <= 4)
+  // 前三颗紧挨着（间距 ≤4），设置前多一道分隔线（间距更大但不超过 12）。
+  check('工具栏竖排一列、自上而下双语翻译/阅读/提炼，分隔线下是设置', oneColumn(home) && gaps.length === 3 && gaps.slice(0, 2).every(g => g >= 0 && g <= 4)
+    && gaps[2] > gaps[1] && gaps[2] <= 12
     && home.btns.every((b, i) => i === 0 || b.t > home.btns[i - 1].t), JSON.stringify({btns: home?.btns, gaps}));
   check('工具栏不压猫', Boolean(home) && !overlaps(home.bar, home.host), JSON.stringify({bar: home?.bar, host: home?.host}));
   const toolbarRole = await petCall(`() => { const bar = document.querySelector('#roamcat-pet-host').shadowRoot.querySelector('.roamcat-toolbar'); return {role: bar.getAttribute('role'), label: bar.getAttribute('aria-label'), labels: [...bar.querySelectorAll('button')].map(b => b.getAttribute('aria-label'))}; }`);
@@ -179,10 +181,10 @@ try {
     return {tip: el.dataset.tip, label: el.getAttribute('aria-label'), content: s.content, opacity: Number(s.opacity), vis: s.visibility};
   });
   const hoverCases = [
+    ['.roamcat-flip-btn', '双语翻译 · 点击翻译本页 (Alt+Shift+T)'],
+    ['#quick-reading', '阅读辅助已暂停 · 点击开启 (Alt+Shift+S)'],
+    ['#quick-summary', '提炼摘要 (Alt+Shift+M)'],
     ['#quick-options', '扩展设置'],
-    ['#quick-summary', '提炼整篇精华'],
-    ['#quick-reading', '阅读辅助已暂停 · 点击开启'],
-    ['.roamcat-flip-btn', null],
   ];
   for (const [sel, expectTip] of hoverCases) {
     const box = await tab.locator(sel).boundingBox();
@@ -232,9 +234,9 @@ try {
   await avatar.focus();
   const forwardTab = [];
   for (let i = 0; i < 4; i++) { await tab.keyboard.press('Tab'); forwardTab.push(await focusId()); }
-  check('从猫头 Tab 依次经过设置、提炼、阅读、双语翻译', forwardTab.join() === 'quick-options,quick-summary,quick-reading,roamcat-flip-btn',
+  check('从猫头 Tab 依次经过双语翻译、阅读、提炼、设置', forwardTab.join() === 'roamcat-flip-btn,quick-reading,quick-summary,quick-options',
     JSON.stringify(forwardTab));
-  const focusTip = await until(() => tipState('#roamcat-flip-btn'), s => s.opacity > 0.9 && s.vis === 'visible');
+  const focusTip = await until(() => tipState('#quick-options'), s => s.opacity > 0.9 && s.vis === 'visible');
   check('键盘聚焦也显示按钮提示', focusTip.opacity > 0.9 && focusTip.vis === 'visible', JSON.stringify(focusTip));
   await tab.mouse.click(30, 30);
 
@@ -251,7 +253,7 @@ try {
   let afterReading = await readingState();
   check('首次点击加载并开启阅读辅助', landed1 && afterReading?.contentAlive === true && afterReading?.enabled === true
     && afterReading?.paused === false && afterReading?.btnActive === true && afterReading?.pressed === 'true', JSON.stringify(afterReading));
-  check('阅读按钮的悬停提示随状态更新', afterReading?.tip === '阅读辅助进行中 · 点击暂停',
+  check('阅读按钮的悬停提示随状态更新', afterReading?.tip === '阅读辅助进行中 · 点击暂停 (Alt+Shift+S)',
     `tip=${afterReading?.tip}`);
   check('切换后缩放胶囊保持展开', afterReading?.dockOpen === true);
   // 再点复原
@@ -259,7 +261,7 @@ try {
   const landed2 = await waitReadingBtn(false);
   afterReading = await readingState();
   check('再点阅读辅助关闭', landed2 && afterReading?.enabled === false && afterReading?.paused === true
-    && afterReading?.btnActive === false && afterReading?.pressed === 'false' && afterReading?.tip === '阅读辅助已暂停 · 点击开启',
+    && afterReading?.btnActive === false && afterReading?.pressed === 'false' && afterReading?.tip === '阅读辅助已暂停 · 点击开启 (Alt+Shift+S)',
     JSON.stringify(afterReading));
   if (!landed1 || !landed2) {
     warn('体验问题：阅读辅助开关缺少 pending 反馈，rebuild 期间按钮态滞后于实际状态');
@@ -273,7 +275,7 @@ try {
     const state = await readingState();
     check(`弹窗切换后伴读猫同步${enabled ? '开启' : '关闭'}`, response?.ok && landed && state?.enabled === enabled
       && state?.btnActive === enabled && state?.pressed === String(enabled)
-      && state?.tip === (enabled ? '阅读辅助进行中 · 点击暂停' : '阅读辅助已暂停 · 点击开启'), JSON.stringify(state));
+      && state?.tip === (enabled ? '阅读辅助进行中 · 点击暂停 (Alt+Shift+S)' : '阅读辅助已暂停 · 点击开启 (Alt+Shift+S)'), JSON.stringify(state));
   }
 
   // ---------- 10. 双语翻译：无服务时走错误播报 ----------

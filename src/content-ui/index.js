@@ -13,7 +13,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
  */
-import {render, html, svg, nothing} from 'lit-html';
+import {render, html, nothing} from 'lit-html';
 import {ref} from 'lit-html/directives/ref.js';
 import {unsafeHTML} from 'lit-html/directives/unsafe-html.js';
 import {icon, domainIconName} from '../components/icons.js';
@@ -107,16 +107,20 @@ export function brandLabel(url, context = '') {
 
 const T=(k,v)=>globalThis.RoamCatI18n?.t(k,v)??k;
 
+// 浮层卡片统一的关闭钮：右上角 24px 图标 X（状态条 / 解构卡共用；词卡的 .close-x 与伴读猫摘要窗同一规格）。
+const CLOSE_CSS = `.close{flex:none;display:grid;place-items:center;width:24px;height:24px;min-height:24px;padding:0;margin:0;border:0;border-radius:var(--radius-control);background:transparent;color:var(--muted);cursor:pointer}.close:hover{background:var(--surface-hover);color:var(--ink)}.close:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}.close svg{display:block}`;
+const closeIcon = () => icon('x', {size: 14});
+
 const brandIconTpl = url => html`<img data-roamcat-ui="brand-icon" src=${url} alt="RoamCat" title=${T('ui.brand')} width="16" height="16" style="display:inline-block;flex:none;width:16px;height:16px;max-width:none;vertical-align:middle;border:0">`;
 const brandLabelTpl = (url, context) => html`<span data-roamcat-ui="brand" style="display:inline-flex;align-items:center;gap:var(--space-2);min-width:0;vertical-align:middle;color:var(--muted);font:var(--weight-medium) var(--type-support)/var(--leading-support) var(--sans);text-align:start"><img data-roamcat-ui="brand-icon" src=${url} alt="" aria-hidden="true" width="16" height="16" style="display:inline-block;flex:none;width:16px;height:16px;max-width:none;vertical-align:middle;border:0">RoamCat${context ? ' · ' + context : ''}</span>`;
 
 // ---------- 任务状态条（右上角 pill / 详情面板） ----------
 
-const TASK_STATUS_CSS = `:host{font:var(--type-control)/var(--leading-control) var(--ui, var(--sans));color:var(--ink)}*{box-sizing:border-box}[hidden]{display:none!important}.panel{max-width:min(320px,calc(100vw - 32px));border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-panel);background-color:var(--surface);background-image:var(--face-raised,none);box-shadow:var(--elev-2);pointer-events:auto}.bar{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-1) var(--space-1) var(--space-3);min-height:40px}.indicator{width:14px;height:14px;flex:none;color:var(--muted);display:grid;place-items:center;font-weight:var(--weight-semibold);font-size:var(--type-support)}.indicator[data-busy=true]{border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:working 1.4s linear infinite}.indicator[data-error=true]{color:var(--danger)}.label{min-width:0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.count{color:var(--muted);font-size:var(--type-support);flex:none}button{flex:none;min-height:32px;padding:var(--space-1) var(--space-2);border:0;border-radius:var(--radius-control);background:transparent;color:var(--muted);font:inherit;cursor:pointer}button:hover{background:var(--surface-hover);color:var(--ink)}button:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}.close{width:32px;padding:0;display:grid;place-items:center}.close svg{width:14px;height:14px}.detail{border-top:1px solid var(--line);padding:var(--space-3);max-height:min(240px,50vh);overflow:auto;color:var(--muted-strong);font-size:var(--type-support);line-height:var(--leading-body);overflow-wrap:anywhere;white-space:pre-wrap}@keyframes working{to{transform:rotate(360deg)}}@keyframes rc-ui-in{from{opacity:0;translate:0 -6px}to{opacity:1;translate:0 0}}.panel{animation:rc-ui-in var(--rc-dur-fast,160ms) var(--rc-ease-out,cubic-bezier(.16,1,.3,1)) both}@media(prefers-reduced-motion:reduce){.indicator[data-busy=true]{animation:none}.panel{animation:none}}.panel.compact{max-width:none;border-radius:var(--radius-pill)}.panel.compact .bar{gap:0;padding:0;min-height:0}.panel.compact .bar>img{display:none!important}.panel.compact .label,.panel.compact .count,.panel.compact .more,.panel.compact .close{display:none}.panel.compact .indicator{width:18px;height:18px;margin:var(--space-2)}.panel[data-error=true]{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))}.panel[data-error=true] .label{color:var(--danger)}.panel[data-error=true] .indicator{font-weight:700}`;
+const TASK_STATUS_CSS = `:host{font:var(--type-control)/var(--leading-control) var(--ui, var(--sans));color:var(--ink)}*{box-sizing:border-box}[hidden]{display:none!important}.panel{max-width:min(320px,calc(100vw - 32px));border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-xl);background-color:var(--surface);background-image:var(--face-raised,none);box-shadow:var(--elev-2);pointer-events:auto}.bar{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-2) var(--space-1) var(--space-3);min-height:40px}.indicator{width:14px;height:14px;flex:none;color:var(--muted);display:grid;place-items:center;font-weight:var(--weight-semibold);font-size:var(--type-support)}.indicator[data-busy=true]{border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:working 1.4s linear infinite}.indicator[data-error=true]{color:var(--danger)}.label{min-width:0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.count{color:var(--muted);font-size:var(--type-support);flex:none}button{flex:none;min-height:32px;padding:var(--space-1) var(--space-2);border:0;border-radius:var(--radius-control);background:transparent;color:var(--muted);font:inherit;cursor:pointer}button:hover{background:var(--surface-hover);color:var(--ink)}button:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}.detail{border-top:1px solid var(--line);padding:var(--space-3);max-height:min(240px,50vh);overflow:auto;color:var(--muted-strong);font-size:var(--type-support);line-height:var(--leading-body);overflow-wrap:anywhere;white-space:pre-wrap}@keyframes working{to{transform:rotate(360deg)}}@keyframes rc-ui-in{from{opacity:0;translate:0 -6px}to{opacity:1;translate:0 0}}.panel{animation:rc-ui-in var(--rc-dur-fast,160ms) var(--rc-ease-out,cubic-bezier(.16,1,.3,1)) both}@media(prefers-reduced-motion:reduce){.indicator[data-busy=true]{animation:none}.panel{animation:none}}.panel.compact{max-width:none;border-radius:var(--radius-pill)}.panel.compact .bar{gap:0;padding:0;min-height:0}.panel.compact .bar>img{display:none!important}.panel.compact .label,.panel.compact .count,.panel.compact .more,.panel.compact .close{display:none}.panel.compact .indicator{width:18px;height:18px;margin:var(--space-2)}.panel[data-error=true]{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))}.panel[data-error=true] .label{color:var(--danger)}.panel[data-error=true] .indicator{font-weight:700}`;
 
 export function taskStatus(shadow, {brandIconUrl, onClose}) {
   render(html`
-    <style>${designCss(':host')}${TASK_STATUS_CSS}</style>
+    <style>${designCss(':host')}${TASK_STATUS_CSS}${CLOSE_CSS}</style>
     <section class="panel" aria-label=${T('ui.statusAria')}>
       <div class="bar">
         ${brandIconTpl(brandIconUrl)}
@@ -124,7 +128,7 @@ export function taskStatus(shadow, {brandIconUrl, onClose}) {
         <p class="label" role="status" aria-live="polite" aria-atomic="true"></p>
         <span class="count"></span>
         <button type="button" class="more" aria-expanded="false" aria-controls="status-detail" aria-label=${T('ui.moreAria')}>${T('ui.more')}</button>
-        <button type="button" class="close" aria-label=${T('ui.hideTipAria')} title=${T('ui.hideTip')}>${svg`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>`}</button>
+        <button type="button" class="close" aria-label=${T('ui.hideTipAria')} title=${T('ui.hideTip')}>${closeIcon()}</button>
       </div>
       <div class="detail" id="status-detail" hidden></div>
     </section>`, shadow);
@@ -150,15 +154,15 @@ export function taskStatus(shadow, {brandIconUrl, onClose}) {
 
 // ---------- 解构详情卡（点击解构下划线弹出） ----------
 
-const SENTENCE_DETAIL_CSS = `:host{font:var(--type-control)/var(--leading-control) var(--ui, var(--sans));color:var(--ink)}section{box-sizing:border-box;max-height:min(60vh,420px);overflow:auto;padding:var(--space-3);background-color:var(--surface);background-image:var(--face-raised,none);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-panel);box-shadow:var(--elev-2)}.head{display:flex;align-items:center;justify-content:space-between;gap:12px}button{font:inherit;color:var(--muted);border:0;background:transparent;min-height:32px;cursor:pointer}ul{list-style:none;padding-left:14px;margin:8px 0}section>ul{padding-left:0}li{margin:7px 0;overflow-wrap:anywhere}.role{display:inline-flex;align-items:center;font-size:var(--fs-1, 12px);font-weight:var(--weight-medium);padding:1px 7px;border-radius:999px;border:1px solid currentColor;margin-right:8px;line-height:1.4;vertical-align:middle}@keyframes rc-ui-in{from{opacity:0;scale:.97;translate:0 4px}to{opacity:1;scale:1;translate:0 0}}section{animation:rc-ui-in var(--rc-dur-fast,160ms) var(--rc-ease-out,cubic-bezier(.16,1,.3,1)) both}@media(prefers-reduced-motion:reduce){section{animation:none}}`;
+const SENTENCE_DETAIL_CSS = `:host{font:var(--type-control)/var(--leading-control) var(--ui, var(--sans));color:var(--ink)}section{box-sizing:border-box;max-height:min(60vh,420px);overflow:auto;padding:var(--space-3);background-color:var(--surface);background-image:var(--face-raised,none);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-xl);box-shadow:var(--elev-2)}.head{display:flex;align-items:center;justify-content:space-between;gap:12px}ul{list-style:none;padding-left:14px;margin:8px 0}section>ul{padding-left:0}li{margin:7px 0;overflow-wrap:anywhere}.role{display:inline-flex;align-items:center;font-size:var(--fs-1, 12px);font-weight:var(--weight-medium);padding:1px 7px;border-radius:999px;border:1px solid currentColor;margin-right:8px;line-height:1.4;vertical-align:middle}@keyframes rc-ui-in{from{opacity:0;scale:.97;translate:0 4px}to{opacity:1;scale:1;translate:0 0}}section{animation:rc-ui-in var(--rc-dur-fast,160ms) var(--rc-ease-out,cubic-bezier(.16,1,.3,1)) both}@media(prefers-reduced-motion:reduce){section{animation:none}}`;
 
 export function sentenceDetail(shadow, {brandIconUrl, onClose}) {
   render(html`
-    <style>${designCss(':host')}${SENTENCE_DETAIL_CSS}</style>
+    <style>${designCss(':host')}${SENTENCE_DETAIL_CSS}${CLOSE_CSS}</style>
     <section role="dialog" aria-label=${T('ui.structAria')}>
       <div class="head">
         ${brandLabelTpl(brandIconUrl, T('ui.struct'))}
-        <button type="button" class="close">${T('ui.close')}</button>
+        <button type="button" class="close" aria-label=${T('ui.close')} title=${T('ui.close')}>${closeIcon()}</button>
       </div>
       <ul class="tree"></ul>
     </section>`, shadow);
@@ -183,7 +187,7 @@ export function renderStructureTree(tree, {groups, sentence, roleLabel, roleColo
 
 // ---------- 已认识反馈 toast（底部居中） ----------
 
-const KNOWN_FEEDBACK_CSS = `:host{font:var(--type-control)/var(--leading-control) var(--ui, var(--sans));color:var(--ink)}div{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-panel);background-color:var(--surface);background-image:var(--face-raised,none);box-shadow:var(--elev-2)}span{min-width:0;overflow-wrap:anywhere}button{flex:none;min-height:32px;padding:var(--space-1) var(--space-3);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-pill);background-color:var(--surface);background-image:var(--key-face,var(--face,none));box-shadow:var(--key-skirt,var(--inset-soft,none));color:var(--accent);text-shadow:var(--emboss,none);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui, var(--sans));cursor:pointer;transition:box-shadow .12s ease,transform .08s ease}button:hover{border-color:var(--rim,var(--line));box-shadow:var(--key-skirt-hover,var(--key-skirt,none))}button:active{transform:translateY(2px);box-shadow:var(--key-press,var(--press,none))}button:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}button:disabled{color:var(--on-action-disabled);background-color:var(--action-disabled);background-image:none;box-shadow:none;transform:none}@keyframes rc-ui-in{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}div{animation:rc-ui-in var(--rc-dur-fast,160ms) var(--rc-ease-out,cubic-bezier(.16,1,.3,1)) both}@media(prefers-reduced-motion:reduce){div{animation:none}}`;
+const KNOWN_FEEDBACK_CSS = `:host{font:var(--type-control)/var(--leading-control) var(--ui, var(--sans));color:var(--ink)}div{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-xl);background-color:var(--surface);background-image:var(--face-raised,none);box-shadow:var(--elev-2)}span{min-width:0;overflow-wrap:anywhere}button{flex:none;min-height:32px;padding:var(--space-1) var(--space-3);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-pill);background-color:var(--surface);background-image:var(--key-face,var(--face,none));box-shadow:var(--key-skirt,var(--inset-soft,none));color:var(--accent);text-shadow:var(--emboss,none);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui, var(--sans));cursor:pointer;transition:box-shadow .12s ease,transform .08s ease}button:hover{border-color:var(--rim,var(--line));box-shadow:var(--key-skirt-hover,var(--key-skirt,none))}button:active{transform:translateY(2px);box-shadow:var(--key-press,var(--press,none))}button:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}button:disabled{color:var(--on-action-disabled);background-color:var(--action-disabled);background-image:none;box-shadow:none;transform:none}@keyframes rc-ui-in{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}div{animation:rc-ui-in var(--rc-dur-fast,160ms) var(--rc-ease-out,cubic-bezier(.16,1,.3,1)) both}@media(prefers-reduced-motion:reduce){div{animation:none}}`;
 
 export function knownFeedback(shadow, {brandIconUrl, term, onUndo}) {
   render(html`
@@ -232,7 +236,7 @@ export function translationDisplayToggle(shadow, {brandIconUrl, onChange}) {
 const WORD_CARD_CSS = `:host{color:var(--ink);font:var(--type-control)/var(--leading-control) var(--sans)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-.card{padding:16px 18px 14px;border:1px solid var(--rim-soft,var(--line));border-radius:12px;background-color:var(--surface);background-image:none;box-shadow:var(--elev-2);max-height:min(70vh,calc(100vh - 24px));overflow:auto}
+.card{padding:16px 18px 14px;border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-xl);background-color:var(--surface);background-image:none;box-shadow:var(--elev-2);max-height:min(70vh,calc(100vh - 24px));overflow:auto}
 .hud-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .card:has(.hud-term.passage) .hud-head{align-items:flex-start}
 .hud-term-group{display:flex;align-items:center;gap:8px;min-width:0}
@@ -240,8 +244,7 @@ const WORD_CARD_CSS = `:host{color:var(--ink);font:var(--type-control)/var(--lea
 .hud-term{margin:0;font:600 var(--fs-5, 20px)/1.25 var(--serif, Georgia, serif);color:var(--ink);overflow-wrap:anywhere;white-space:pre-wrap}
 .hud-term.passage{font:400 var(--fs-2, 13px)/1.55 var(--sans)}
 .hud-head-right{display:flex;align-items:center;gap:8px;flex:none}
-.hud-tag{display:none}
-.hud-icon-btn,.listen{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;min-width:24px;min-height:24px;padding:0;margin:0;border-radius:6px;border:1px solid transparent;background-color:transparent;background-image:none;box-shadow:none;color:var(--muted);cursor:pointer;transition:all .15s ease}
+.hud-icon-btn,.listen{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;min-width:24px;min-height:24px;padding:0;margin:0;border-radius:var(--radius-control);border:1px solid transparent;background-color:transparent;background-image:none;box-shadow:none;color:var(--muted);cursor:pointer;transition:all .15s ease}
 .hud-icon-btn:hover,.listen:hover{color:var(--ink);background-color:var(--surface-hover)}
 .hud-icon-btn:focus-visible,.listen:focus-visible,.hud-action:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}
 .hud-icon-btn svg,.listen svg{display:block}
@@ -283,7 +286,7 @@ details.more>summary:focus-visible{outline:var(--focus-ring);outline-offset:var(
 @media(prefers-reduced-motion:reduce){.card{animation:none}}`;
 
 export function wordCard(shadow, {
-  brandIconUrl, kind, sourceText, isPassage = false, contextText = '',
+  brandIconUrl, sourceText, isPassage = false, contextText = '',
   error = '', videoTheme = 'auto', knownAvailable = false, handlers = {},
 }) {
   const refs = {};
@@ -293,8 +296,7 @@ export function wordCard(shadow, {
       <header class="hud-head" ${ref(el => { refs.head = el; })}>
         <div class="hud-term-group" ${ref(el => { refs.sourceHeader = el; })}><p class="source hud-term ${isPassage ? 'passage' : ''}" ${ref(el => { refs.source = el; })}>${sourceText}</p></div>
         <div class="hud-head-right">
-          <span class="hud-tag">${kind === 'word' ? T('ui.kindWord') : T('ui.kindText')}</span>
-          <button type="button" class="hud-icon-btn close-x" aria-label=${T('ui.less')} title=${T('ui.less')} ${ref(el => { refs.closeX = el; })} @click=${handlers.close}>${icon('x', {size: 14})}</button>
+          <button type="button" class="hud-icon-btn close-x" aria-label=${T('ui.close')} title=${T('ui.close')} ${ref(el => { refs.closeX = el; })} @click=${handlers.close}>${icon('x', {size: 14})}</button>
         </div>
       </header>
       <div class="hud-body">
@@ -408,6 +410,7 @@ export function renderMeaningRows(dl, rows) {
 // 只迁移静态 DOM 骨架；状态更新仍由 floating-pet.js 经 shadowQuery 命令式驱动。
 // catSvg / peekingCatSvg 为内部可信 SVG 标记，经 unsafeHTML 注入（数据内容一律走文本绑定）。
 // 竖排快捷工具栏是猫之外的独立挂件（与摘要窗同级、各自 position:fixed），按钮的悬停提示走 data-tip。
+// 按使用频率自上而下：双语翻译 → 阅读辅助 → 提炼摘要，分隔线下是最少用的设置；三个功能的提示都写快捷键。
 
 export function petWidget(shadow, {domainKey = 'general', domainName = '', catSvg = '', peekingCatSvg = '', onEdgeTabClick} = {}) {
   render(html`
@@ -426,7 +429,7 @@ export function petWidget(shadow, {domainKey = 'general', domainName = '', catSv
         <div class="cat-speech-bubble" id="cat-speech">
           <span class="speech-spinner" id="speech-spinner"></span>
           <span class="speech-text" id="speech-text">${T('pet.speechDefault')}</span>
-          <button type="button" class="speech-close-btn" id="speech-close-btn" title=${T('pet.hideTip')} aria-label=${T('pet.hideTip')}>${icon('x', {size: 12})}</button>
+          <button type="button" class="speech-close-btn" id="speech-close-btn" title=${T('pet.hideTip')} aria-label=${T('pet.hideTip')}>${icon('x', {size: 14})}</button>
         </div>
         <div class="cat-zzz-wrap" aria-hidden="true">
           <span class="zzz-item zzz-1">z</span>
@@ -439,21 +442,22 @@ export function petWidget(shadow, {domainKey = 'general', domainName = '', catSv
     </div>
     <div class="roamcat-toolbar" role="toolbar" aria-orientation="vertical" aria-label=${T('pet.toolbarAria')}>
       <span class="toolbar-grip" aria-hidden="true"></span>
-      <button type="button" class="roamcat-quick-btn" id="quick-options" aria-label=${T('pet.optAria')} data-tip=${T('pet.optTip')}>
-        <span class="quick-glyph" aria-hidden="true">${icon('settings', {size: 15})}</span>
-      </button>
-      <button type="button" class="roamcat-quick-btn" id="quick-summary" aria-label=${T('pet.sumAria')} data-tip=${T('pet.sumTip')}>
-        <span class="quick-glyph" aria-hidden="true">${icon('file-text', {size: 15})}</span>
-      </button>
-      <button type="button" class="roamcat-quick-btn" id="quick-reading" aria-label=${T('pet.readAria')} data-tip=${T('pet.readTip')} aria-pressed="false">
-        <span class="quick-glyph" aria-hidden="true">${icon('book-open', {size: 15})}</span>
-      </button>
-      <button type="button" class="roamcat-quick-btn roamcat-flip-btn" id="roamcat-flip-btn" aria-label=${T('pet.flipAria')} data-tip=${T('pet.flipTip')} aria-pressed="false">
+      <button type="button" class="roamcat-quick-btn roamcat-flip-btn" id="roamcat-flip-btn" aria-label=${T('pet.flipAria')} data-tip=${T('fp.tipIdle')} aria-pressed="false">
         <span class="quick-glyph" aria-hidden="true">${icon('languages', {size: 15})}</span>
         <svg class="flip-orbit-ring" viewBox="0 0 34 34">
           <circle class="orbit-bg" cx="17" cy="17" r="15" />
           <circle class="orbit-active" cx="17" cy="17" r="15" />
         </svg>
+      </button>
+      <button type="button" class="roamcat-quick-btn" id="quick-reading" aria-label=${T('pet.readAria')} data-tip=${T('fp.readingOff')} aria-pressed="false">
+        <span class="quick-glyph" aria-hidden="true">${icon('book-open', {size: 15})}</span>
+      </button>
+      <button type="button" class="roamcat-quick-btn" id="quick-summary" aria-label=${T('pet.sumAria')} data-tip=${T('pet.sumTip')}>
+        <span class="quick-glyph" aria-hidden="true">${icon('file-text', {size: 15})}</span>
+      </button>
+      <span class="toolbar-sep" role="separator"></span>
+      <button type="button" class="roamcat-quick-btn" id="quick-options" aria-label=${T('pet.optAria')} data-tip=${T('pet.optTip')}>
+        <span class="quick-glyph" aria-hidden="true">${icon('settings', {size: 15})}</span>
       </button>
     </div>
     <div class="roamcat-summary-window">

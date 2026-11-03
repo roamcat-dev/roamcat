@@ -2385,7 +2385,7 @@ const LIMIT_ERROR = T('c.limit');
       host = document.createElement('div');
     host.setAttribute(OWN, 'passage-action');
     host.style.cssText =
-      'position:fixed;z-index:2147483647;display:flex;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 16px);gap:var(--space-1);pointer-events:auto;box-sizing:border-box;padding:var(--space-1) var(--space-2);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-panel);background-color:var(--surface);background-image:var(--face-raised,none);box-shadow:var(--elev-2)';
+      'position:fixed;z-index:2147483647;display:flex;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 16px);gap:var(--space-1);pointer-events:auto;box-sizing:border-box;padding:var(--space-1) var(--space-2);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-xl);background-color:var(--surface);background-image:var(--face-raised,none);box-shadow:var(--elev-2)';
     const brand = createBrandLabel();
     brand.style.marginInlineEnd = 'var(--space-1)';
     host.append(brand);
@@ -2426,7 +2426,7 @@ const LIMIT_ERROR = T('c.limit');
       button.disabled = Boolean(target.error);
       button.title = target.error || (item.kind === 'lookup' ? T('c.explainSel') : '');
       button.style.cssText =
-        'font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--sans);min-height:36px;padding:var(--space-2) var(--space-3);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-pill);background-color:var(--surface);background-image:var(--key-face,var(--face,none));box-shadow:var(--key-skirt,var(--inset-soft,none));color:var(--accent);text-shadow:var(--emboss,none);cursor:' +
+        'box-sizing:border-box;font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--sans);min-height:32px;padding:var(--space-1) var(--space-3);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-pill);background-color:var(--surface);background-image:var(--key-face,var(--face,none));box-shadow:var(--key-skirt,var(--inset-soft,none));color:var(--accent);text-shadow:var(--emboss,none);cursor:' +
         (target.error ? 'not-allowed' : 'pointer');
       button.onmouseenter = () => preview(item);
       button.onfocus = () => preview(item);
@@ -2449,7 +2449,7 @@ const LIMIT_ERROR = T('c.limit');
         warning.setAttribute('role', 'status');
         warning.textContent = target.error;
         warning.style.cssText =
-          'max-width:320px;padding:var(--space-2);border-radius:var(--radius-medium);background:var(--surface);color:var(--danger,var(--accent));box-shadow:var(--shadow-high);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--sans)';
+          'max-width:320px;padding:var(--space-1) var(--space-2);border-radius:var(--radius-control);background:var(--danger-soft);color:var(--danger);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--sans)';
         host.append(warning);
       }
     }
@@ -3799,7 +3799,7 @@ const LIMIT_ERROR = T('c.limit');
       const shadow=host.attachShadow({mode:'closed'}),style=document.createElement('style');
       style.textContent =
         designCss(':host') +
-        ':host{font:var(--type-control)/var(--leading-control) var(--sans);color:var(--ink)}*{box-sizing:border-box}.toast{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-panel);background-color:var(--surface);background-image:var(--face-raised,none);box-shadow:var(--elev-2);max-width:min(380px,calc(100vw - 32px))}.glyph{flex:none;font-size:var(--fs-4, 16px)}.copy{min-width:0;flex:1;font-size:var(--type-support);line-height:var(--leading-body);color:var(--muted-strong)}.copy b{color:var(--ink)}button{flex:none;min-height:30px;padding:var(--space-1) var(--space-3);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-control);background-color:var(--surface);background-image:var(--key-face,var(--face,none));box-shadow:var(--key-skirt,var(--inset-soft,none));color:var(--ink);text-shadow:var(--emboss,none);font:inherit;cursor:pointer;transition:box-shadow .12s ease,transform .08s ease}button:hover{box-shadow:var(--key-skirt-hover,var(--key-skirt,none))}button:active{transform:translateY(2px);box-shadow:var(--key-press,var(--press,none))}button.primary{background-color:var(--accent);background-image:var(--lacquer,none);border-color:var(--accent);color:var(--surface);box-shadow:var(--lacquer-skirt,var(--lacquer-inset,var(--inset-soft,none)));text-shadow:none}button.primary:hover{box-shadow:var(--lacquer-skirt,var(--lacquer-inset,none))}button.primary:active{transform:translateY(2px);box-shadow:var(--lacquer-press,var(--press,none))}.close{width:30px;padding:0;display:grid;place-items:center;color:var(--muted)}.close:hover{background-image:var(--face-raised,var(--face,none));color:var(--ink)}.auto{display:flex;align-items:center;gap:var(--space-1);font-size:var(--type-support);color:var(--muted);white-space:nowrap;cursor:pointer}';
+        ':host{font:var(--type-control)/var(--leading-control) var(--sans);color:var(--ink)}*{box-sizing:border-box}.toast{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:var(--space-2);width:min(340px,calc(100vw - 32px));padding:var(--space-3);border:1px solid var(--rim-soft,var(--line));border-radius:var(--radius-xl);background-color:var(--surface);box-shadow:var(--elev-2)}.glyph{font-size:var(--fs-4, 16px);line-height:var(--leading-body)}.copy{font-size:var(--type-support);line-height:var(--leading-body);color:var(--muted-strong)}.copy b{color:var(--ink)}.actions{grid-column:2/-1;display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-3)}button{font:inherit;cursor:pointer}button:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}.primary{min-height:32px;padding:0 var(--space-3);border:1px solid var(--action);border-radius:var(--radius-control);background:var(--action);color:var(--on-action);font-weight:var(--weight-medium)}.primary:hover{border-color:var(--action-hover);background:var(--action-hover)}.close{display:grid;place-items:center;width:24px;height:24px;margin:-4px -4px 0 0;padding:0;border:0;border-radius:var(--radius-control);background:transparent;color:var(--muted)}.close:hover{background:var(--surface-hover);color:var(--ink)}.close svg{display:block;width:14px;height:14px}.auto{display:flex;align-items:center;gap:var(--space-1);font-size:var(--type-support);color:var(--muted);white-space:nowrap;cursor:pointer}';
       const panel=document.createElement('div');panel.className='toast';
       const glyph=document.createElement('span');glyph.className='glyph';glyph.textContent='↻';
       const copy=document.createElement('span');copy.className='copy';
@@ -3811,9 +3811,10 @@ const LIMIT_ERROR = T('c.limit');
       autoBox.addEventListener('change',()=>{try{localStorage.setItem('roamcat_auto_reload',autoBox.checked?'1':'0');}catch{}});
       autoLabel.append(autoBox,document.createTextNode(T('c.reloadAuto')));
       const close=document.createElement('button');close.type='button';close.className='close';close.innerHTML='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>';
-      close.title=T('c.reloadClose');
+      close.title=T('c.reloadClose');close.setAttribute('aria-label',T('c.reloadClose'));
       close.onclick=()=>host.remove();
-      panel.append(glyph,copy,reload,autoLabel,close);
+      const actions=document.createElement('div');actions.className='actions';actions.append(reload,autoLabel);
+      panel.append(glyph,copy,close,actions);
       shadow.append(style,panel);
       (document.fullscreenElement||document.documentElement).appendChild(host);
     }catch{}
