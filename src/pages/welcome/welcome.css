@@ -61,6 +61,15 @@ roamcat-welcome { display: contents; }
 .hotkey-choice-btn { transition: all var(--rc-dur-fast) var(--rc-ease-standard); }
 .hotkey-choice-btn:active { scale: 0.96; }
 
+/* 模型服务检测：检测中图标慢转，结果出来后状态条弹入 */
+@keyframes welcome-service-spin { to { rotate: 360deg; } }
+#step-service[data-state="checking"] .service-status-icon > svg {
+  animation: welcome-service-spin 1.1s linear infinite;
+}
+#step-service:not([data-state="checking"]) .service-status {
+  animation: rc-enter-pop var(--rc-dur-med) var(--rc-spring-soft) both;
+}
+
 /* toast 弹性入场 */
 .launch-toast:not([hidden]) {
   animation: rc-enter-pop var(--rc-dur-med) var(--rc-spring-soft) both;
