@@ -20,6 +20,14 @@ const extensionDir=path.resolve(process.env.ROAMCAT_PERF_EXTENSION_DIR||DIST);
 const out=process.env.ROAMCAT_PERF_REPORT_DIR?path.resolve(process.env.ROAMCAT_PERF_REPORT_DIR):previewPath('performance');fs.mkdirSync(out,{recursive:true});
 const report={checks:[],failures:[],errors:[],measurements:{}};
 const save=()=>fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2));
+// 排队探针：只在测试副本的 background.js 末尾把后台分道与服务闸门已有的 snapshot() 挂到全局（只读，不进产物），
+// 门禁临时连上后台 service worker 读它，按排队状态等待，不再靠固定时长猜请求是否已进队。
+const QUEUE_PROBE_ANCHORS=['const serviceGates=createServiceGates();','const backgroundLanes=createWorkLanes('];
+function exposeBackgroundQueues(dir){
+  const file=path.join(dir,'background.js'),source=fs.readFileSync(file,'utf8');
+  for(const anchor of QUEUE_PROBE_ANCHORS)if(!source.includes(anchor))throw new Error(`background.js 里找不到「${anchor}」：后台分道或服务闸门的写法变了，请同步更新 verify-performance.mjs 的排队探针`);
+  fs.writeFileSync(file,source+'\n;globalThis.__roamcatPerfQueues=serviceId=>({lanes:backgroundLanes.snapshot(),service:serviceGates.snapshot(serviceId)});\n');
+}
 const paragraph='The database uses an index to find records quickly. A cache reduces latency when requests repeat. Careful readers compare the evidence before they reach a conclusion. ';
 const fixture=`<!doctype html><html lang="en"><head><title>Performance fixture</title><style>body{margin:0;font:16px/1.7 Georgia;background:white;color:#222}#feed{width:760px;margin:30px auto}p{margin:0 0 20px}</style></head><body><div id="feed"><h1>How readers understand evidence</h1>${Array.from({length:2000},(_,i)=>`<div><div><p>${paragraph}<em>Section ${i} explores the results.</em></p></div></div>`).join('')}</div></body></html>`;
 // 翻译用的本地假接口：/v1 为 OpenAI 兼容模型（json 定时返回 / sse 每 12ms 流 4 个字符 / auth 一律 401），/translate 为 DeepLX。
@@ -64,7 +72,7 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin=`h
 let run;
 async function check(name,fn){try{const result=await fn();report.checks.push({name,result});console.log('PASS '+name+(result?' '+JSON.stringify(result):''));}catch(error){report.failures.push({name,error:error.stack});console.error('FAIL '+name+': '+error.message);}save();}
 try{
-  run=await openBrowser({extension:extensionDir});let control=run.page;await control.goto(extUrl('local-inference/offscreen.html'));
+  run=await openBrowser({extension:extensionDir,prepareExtension:exposeBackgroundQueues});let control=run.page;await control.goto(extUrl('local-inference/offscreen.html'));
   const request=async(type,payload={})=>{const response=await control.evaluate(message=>chrome.runtime.sendMessage(message),{type,...payload});assert.ok(response.ok,response.error);return response.data;};
   await request('STATE_PATCH',{patch:{providerKind:'api',assistanceMode:'on-demand',domain:'general',floatingPet:{enabled:false}}});
   const page=await run.newPage();page.on('pageerror',error=>report.errors.push(error.message));await page.setViewportSize({width:1280,height:900},1);await page.goto(origin+'/article');
@@ -212,6 +220,18 @@ try{
   const until=async(probe,accept,label,timeout=15000)=>{const deadline=Date.now()+timeout;for(;;){const value=await probe();if(accept(value))return value;if(Date.now()>deadline)throw new Error(label+' 超时：'+JSON.stringify(value));await sleep(25);}};
   const service=maxConcurrency=>({apiServices:[{id:'perf',name:'Local performance fixture',providerId:'openai-compatible',baseUrl:origin+'/v1',model:'perf-model',apiKey:'fixture-not-a-real-key',maxConcurrency,options:{}}],activeApiServiceId:'perf'});
   const emergency=async()=>(await inContent('stats')).emergency;
+  // 读一次后台排队数：每次临时连上后台 service worker、求值后立刻断开——调试会话一直挂着会让后台无法空闲回收，影响最后一项检查。
+  const backgroundQueues=async serviceId=>{
+    const {targetInfos}=await run.browser.send('Target.getTargets');
+    const worker=targetInfos.find(item=>item.type==='service_worker'&&item.url===extUrl('background.js'));
+    if(!worker)throw new Error('后台 service worker 不在运行');
+    const {sessionId}=await run.browser.send('Target.attachToTarget',{targetId:worker.targetId,flatten:true});
+    try{
+      const {result,exceptionDetails}=await run.browser.connection.send('Runtime.evaluate',{expression:`globalThis.__roamcatPerfQueues(${JSON.stringify(serviceId)})`,returnByValue:true},sessionId);
+      if(exceptionDetails)throw new Error('读取后台排队数失败：'+(exceptionDetails.exception?.description||exceptionDetails.text));
+      return result.value;
+    }finally{await run.browser.send('Target.detachFromTarget',{sessionId}).catch(()=>{});}
+  };
   const emergencyStatus=()=>control.evaluate(async tabId=>(await chrome.scripting.executeScript({target:{tabId},func:()=>globalThis.__ROAMCAT_CONTENT__.emergencyStatus()}))[0].result,tabId);
   // 从网页内容脚本所在的隔离环境发消息，sender 才是这个标签页；done 记下回包时刻，与进度监听同一时钟。
   const fromTab=(message,target=tabId)=>control.evaluate(async({tabId,message})=>(await chrome.scripting.executeScript({target:{tabId},func:async message=>{const result=await chrome.runtime.sendMessage(message);globalThis.__perfDone=performance.now();return result;},args:[message]}))[0].result,{tabId:target,message});
@@ -279,15 +299,17 @@ try{
       await until(()=>model.held.size,count=>count===2,'阅读器前两批占满名额');
       // 字幕从另一个没暂停过的标签页发出；先把两条响应扣住，避免把浏览器 IPC 启动耗时误判为没有插队。
       const sent=performance.now();video=fromTab({type:'VIDEO_CUE_TRANSLATE',requestId:'perf-video',items:[{id:'visible-video',text:'The current video caption needs an immediate translation.',context:{title:'Performance video',heading:'',before:'',after:''}}]},videoTab);
-      // 观察窗口：两个名额占满时不会发出第三条请求，同时让已提交的字幕进入等待队列。
-      await sleep(150);assert.equal(model.calls.length,2);
+      // 按状态等：字幕进了视频道、正在服务闸门前排队（两个名额被阅读器前两批占着，后四批还排在阅读器自己的道里）。
+      // 曾用固定 150ms 观察窗口：满载时字幕还没进队，空出的名额先被阅读器第三批拿走，门禁偶发失败。
+      const queued=await until(()=>backgroundQueues('perf'),value=>value.lanes.video?.active===1&&value.service.active===2&&value.service.waiting===1,'当前字幕在服务闸门前排队');
+      assert.equal(model.calls.length,2,'两个名额占满时不应发出第三条请求');
       model.held.get('bulk0')();model.held.delete('bulk0');
       const result=await video;assert.ok(result.ok,result.error);
       model.held.get('bulk1')();model.held.delete('bulk1');assert.ok((await bulk).every(result=>result.ok));
       const order=model.calls.map(call=>call.ids[0]),videoCall=model.calls.find(call=>call.ids.includes('visible-video'));
       assert.equal(order.indexOf('visible-video'),2,'当前字幕应排在下一个空出的名额：'+order.join(','));
       assert.equal(model.peak,2,'设置为 2 时在途合计仍不超过 2');
-      const data={peakAt10:5,orderAt2:order,videoQueueMs:videoCall.start-sent};report.measurements.lanes=data;return data;
+      const data={peakAt10:5,orderAt2:order,videoQueueMs:videoCall.start-sent,queuedReader:queued.lanes.reader?.waiting};report.measurements.lanes=data;return data;
     }finally{model.holdBulk=false;for(const release of model.held.values())release();model.held.clear();await Promise.allSettled([bulk,video]);await videoPage.close();}
   });
   // 回归：单条接口的机翻曾逐条串行往返，第一条约 130ms 已译完，8 条要约 1 秒后才一起显示。
@@ -335,10 +357,11 @@ try{
         globalThis.__videoProgress=[];globalThis.__videoDone=false;globalThis.__videoStarted=performance.now();
         globalThis.__videoResult=globalThis.__videoCallbacks.onTranslate(Array.from({length:5},(_,i)=>({id:'video-progress'+i,text:'Caption passage '+i+' compares independent and reliable evidence.',context:{title:'Progress video',heading:'',before:'',after:''}})),items=>globalThis.__videoProgress.push({count:items.length,ms:performance.now()-globalThis.__videoStarted})).then(result=>{globalThis.__videoDone=true;return {items:result.items.length,ms:performance.now()-globalThis.__videoStarted};}).catch(error=>{globalThis.__videoError=error.message;return null;});
       }}),videoTab);
-      const early=await until(()=>control.evaluate(async tabId=>(await chrome.scripting.executeScript({target:{tabId},func:()=>({events:globalThis.__videoProgress,done:globalThis.__videoDone,error:globalThis.__videoError})}))[0].result,videoTab),value=>{assert.ok(!value.error,value.error);return value.events.length&&!value.done;},'字幕批次结束前的进度');
-      const final=await control.evaluate(async tabId=>(await chrome.scripting.executeScript({target:{tabId},func:async()=>await globalThis.__videoResult}))[0].result,videoTab);
-      assert.ok(early.events[0].count<5);assert.equal(final.items,5);assert.ok(early.events[0].ms<final.ms);
-      const data={firstMs:early.events[0].ms,totalMs:final.ms};report.measurements.videoProgress=data;return data;
+      // 等整批结束后按时间戳断言：每条进度回调都记下了到达时刻，不必赶在批次结束前轮询到——满载时整批可能在一次轮询间隔里就做完，曾因此偶发失败。
+      const final=await control.evaluate(async tabId=>(await chrome.scripting.executeScript({target:{tabId},func:async()=>({result:await globalThis.__videoResult,events:globalThis.__videoProgress,error:globalThis.__videoError})}))[0].result,videoTab);
+      assert.ok(!final.error,final.error);assert.equal(final.result?.items,5);
+      const first=final.events[0];assert.ok(first,'整批结束前应收到逐条进度');assert.ok(first.count<5,'第一条进度不应一次带回整批');assert.ok(first.ms<final.result.ms,'第一条进度应早于整批结束');
+      const data={firstMs:first.ms,totalMs:final.result.ms};report.measurements.videoProgress=data;return data;
     }finally{
       await control.evaluate(tabId=>chrome.scripting.executeScript({target:{tabId},func:()=>{globalThis.RoamCatVideoSubtitles=globalThis.__videoApi;}}),videoTab).catch(()=>{});
       await videoPage.close();await request('STATE_PATCH',{patch:{translationEngines:{video:''},mtServices:[],mtFallback:true}});

@@ -193,7 +193,9 @@ export function assertFreshDist() {
   throw new Error(problem);
 }
 
-export async function openBrowser({extension = DIST, args = []} = {}) {
+// prepareExtension(dir)：在临时配置里的扩展副本上再做门禁专用的改动（例如 verify:performance 暴露后台排队数），
+// 只改副本、随临时配置一起删除，dist 与产物不受影响。
+export async function openBrowser({extension = DIST, args = [], prepareExtension} = {}) {
   if (extension && !fs.existsSync(path.join(extension, 'manifest.json'))) throw new Error(`扩展目录不存在或缺 manifest.json：${extension}（先运行 npm run build）`);
   if (extension && path.resolve(extension) === DIST) assertFreshDist();
   sweepStaleTemp();
@@ -202,7 +204,7 @@ export async function openBrowser({extension = DIST, args = []} = {}) {
   seedEgoConfig(profile);
   const removeProfile = () => fs.rmSync(profile, {recursive: true, force: true, maxRetries: 8, retryDelay: 300});
   if (extension) {
-    try { extension = await isolatedExtension(extension, profile); }
+    try { extension = await isolatedExtension(extension, profile); await prepareExtension?.(extension); }
     catch (error) { removeProfile(); throw error; }
   }
   const flags = ['--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check',
