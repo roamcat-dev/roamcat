@@ -117,7 +117,7 @@
     controlShadow.innerHTML = `
       <style data-theme-tokens>${tokens}</style><style>
         :host{display:inline-flex;flex:0 0 auto;gap:var(--space-2);font-family:var(--ui,sans-serif)}
-        button{min-height:36px;padding:var(--space-2) var(--space-3);border:1px solid var(--line);border-radius:var(--radius-pill);background:var(--surface);color:var(--accent);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui,sans-serif);cursor:pointer;white-space:nowrap}
+        button{min-height:32px;padding:var(--space-1) var(--space-3);border:1px solid var(--line);border-radius:var(--radius-pill);background:var(--surface);color:var(--accent);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui,sans-serif);cursor:pointer;white-space:nowrap}
         button:hover{background:var(--surface-hover);border-color:var(--accent-line)}
         button:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}
         button[aria-pressed="true"]{background:var(--action);border-color:var(--action);color:var(--on-action)}
@@ -156,12 +156,13 @@
       <style data-theme-tokens>${tokens}</style><style>
         :host{display:block;width:100%;color:var(--ink);font-family:var(--ui,sans-serif);color-scheme:light dark}
         .panel{box-sizing:border-box;margin:var(--space-3) 0;border:1px solid var(--line);border-radius:var(--radius-panel);background:var(--surface);color:var(--ink);overflow:hidden}
-        header{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--line);background:var(--surface)}
+        header{position:relative;display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;padding:var(--space-3) 48px var(--space-3) var(--space-4);border-bottom:1px solid var(--line);background:var(--surface)}
         h2{margin:0;font:var(--weight-medium) var(--type-body)/var(--leading-control) var(--ui,sans-serif)}
         .progress{margin-right:auto;color:var(--muted-strong);font:var(--weight-medium) var(--type-support)/var(--leading-support) var(--ui,sans-serif)}
         label{display:inline-flex;align-items:center;gap:6px;color:var(--muted-strong);font:var(--weight-medium) var(--type-support)/var(--leading-support) var(--ui,sans-serif)}
-        select,.close{min-height:36px;border:1px solid var(--line);border-radius:var(--radius-control);background:var(--surface);color:var(--ink);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui,sans-serif)}
-        select{padding:4px 24px 4px 8px}.close{padding:4px 10px;cursor:pointer}
+        select{min-height:32px;padding:4px 24px 4px 8px;border:1px solid var(--line);border-radius:var(--radius-control);background:var(--surface);color:var(--ink);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui,sans-serif)}
+        .close{position:absolute;top:16px;right:var(--space-3);display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--radius-control);background:transparent;color:var(--muted);cursor:pointer}
+        .close:hover{background:var(--surface-hover);color:var(--ink)}.close svg{display:block;width:14px;height:14px}
         select:focus-visible,button:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}
         .notice{display:none;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--warning-soft);color:var(--warning);font:var(--weight-medium) var(--type-support)/var(--leading-support) var(--ui,sans-serif)}
         .notice[data-kind="error"]{background:var(--danger-soft);color:var(--danger)}
@@ -178,11 +179,11 @@
         .cue[data-continues="true"] .text{padding-bottom:10px}
         .text .translation[hidden]{display:none}
         .time:hover,.text:hover{background:var(--surface-hover)}
-        .more{display:block;margin:var(--space-3) auto;min-height:36px;padding:var(--space-2) var(--space-4);border:1px solid var(--line);border-radius:var(--radius-pill);background:var(--surface);color:var(--accent);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui,sans-serif);cursor:pointer}
+        .more{display:block;margin:var(--space-3) auto;min-height:32px;padding:var(--space-1) var(--space-4);border:1px solid var(--line);border-radius:var(--radius-pill);background:var(--surface);color:var(--accent);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui,sans-serif);cursor:pointer}
         .body{position:relative}
         .follow{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);min-height:32px;padding:4px 14px;border:0;border-radius:var(--radius-pill);background:var(--action);color:var(--on-action);font:var(--weight-semibold) var(--type-support)/1 var(--ui,sans-serif);box-shadow:var(--elev-2);cursor:pointer}
         .follow[hidden]{display:none}
-        .download{min-height:36px;padding:4px 10px;border:1px solid var(--line);border-radius:var(--radius-control);background:var(--surface);color:var(--ink);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui,sans-serif);cursor:pointer}
+        .download{min-height:32px;padding:4px 10px;border:1px solid var(--line);border-radius:var(--radius-control);background:var(--surface);color:var(--ink);font:var(--weight-medium) var(--type-control)/var(--leading-control) var(--ui,sans-serif);cursor:pointer}
         /* 影院模式下原文稿浮在右侧，叠在压暗层之上。 */
         :host([data-theater="true"]) .panel{margin:0;height:100%;display:flex;flex-direction:column;box-shadow:var(--elev-2)}
         :host([data-theater="true"]) .body{flex:1;min-height:0}
@@ -193,7 +194,7 @@
         <label>${T('vid.fontSize')}<select data-setting="fontSize"><option value="16">16</option><option value="20">20</option><option value="24">24</option><option value="28">28</option></select></label>
         <label>${T('vid.theme')}<select data-setting="theme"><option value="auto">${T('vid.themeAuto')}</option><option value="light">${T('vid.themeLight')}</option><option value="dark">${T('vid.themeDark')}</option></select></label>
         <button class="download" type="button">${T('vid.mDownload')}</button>
-        <button class="close" type="button">${T('vid.close')}</button>
+        <button class="close" type="button" aria-label="${T('vid.close')}" title="${T('vid.close')}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button>
       </header><div class="notice" role="status" aria-live="polite"></div><div class="body"><div class="list"></div><button class="follow" type="button" hidden>${T('vid.backToCurrent')}</button></div></div>`;
     const list = transcriptShadow.querySelector('.list');
     const followButton = transcriptShadow.querySelector('.follow');
@@ -258,10 +259,10 @@
         /* 无字幕提示：一行、小卡片，窄画面里省略号截断，不再撑成大椭圆压住画面。 */
         .empty{display:flex;align-items:center;justify-content:center;gap:8px;width:max-content;max-width:min(90%,420px);box-sizing:border-box;padding:4px 4px 4px 12px;border-radius:8px;background:rgba(0,0,0,.72);color:#fff;font:500 var(--fs-1,12px)/1.4 var(--ui,sans-serif);pointer-events:auto}
         .empty p{margin:0;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-        .empty button{flex:none;min-height:24px;padding:2px 10px;border:0;border-radius:999px;background:#fff;color:#111;font:600 var(--fs-1,12px)/1 var(--ui,sans-serif);cursor:pointer}
+        .empty button{flex:none;min-height:28px;padding:2px 10px;border:0;border-radius:999px;background:#fff;color:#111;font:600 var(--fs-1,12px)/1 var(--ui,sans-serif);cursor:pointer}
         .empty button:focus-visible{outline:2px solid #fff;outline-offset:2px}
         /* 播放器内的字幕菜单：深色浮层，固定深底白字，不随扩展主题变色。 */
-        .menu{position:absolute;right:12px;bottom:var(--menu-bottom,56px);width:min(320px,calc(100% - 24px));max-height:calc(100% - var(--menu-bottom,56px) - 12px);overflow:auto;box-sizing:border-box;padding:10px 12px;border-radius:10px;background:rgba(20,20,22,.94);color:#f4f4f5;font:500 var(--fs-2,13px)/1.4 var(--ui,sans-serif);pointer-events:auto;box-shadow:0 8px 28px rgba(0,0,0,.45)}
+        .menu{position:absolute;right:12px;bottom:var(--menu-bottom,56px);width:min(320px,calc(100% - 24px));max-height:calc(100% - var(--menu-bottom,56px) - 12px);overflow:auto;box-sizing:border-box;padding:10px 12px;border-radius:var(--radius-xl);background:rgba(20,20,22,.94);color:#f4f4f5;font:500 var(--fs-2,13px)/1.4 var(--ui,sans-serif);pointer-events:auto;box-shadow:var(--elev-2)}
         .menu[hidden]{display:none}
         .menu .row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:34px}
         .menu .label{color:rgba(244,244,245,.78)}

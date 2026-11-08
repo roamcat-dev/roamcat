@@ -111,6 +111,23 @@ try {
     await page.screenshot({path: previewPath('video-ui', 'live.png')});
     return {panelBottom: layout.panelBottom, titleTop: layout.titleTop, progress: layout.progress};
   });
+  await gate.check('字幕菜单圆角取 --radius-xl；原文稿关闭钮是 24px 图标 X、按钮 28/32', async () => {
+    await page.evaluate(() => find('button.menu-toggle')[0].click());
+    await page.waitForFunction(() => find('.menu').some(menu => !menu.hidden && menu.getClientRects().length), undefined, {timeout: 5000});
+    const shape = await page.evaluate(() => {
+      const menu = find('.menu')[0], cs = getComputedStyle(menu), close = find('.panel .close')[0], rect = close.getBoundingClientRect();
+      const heights = [...find('.panel header button:not(.close)'),...find('.panel header select'), ...find('.menu .seg button'), ...find('.menu .action')]
+        .filter(el => el.getClientRects().length).map(el => Math.round(el.getBoundingClientRect().height));
+      return {radius: cs.borderTopLeftRadius, token: cs.getPropertyValue('--radius-xl').trim(), close: `${Math.round(rect.width)}x${Math.round(rect.height)}`,
+        text: close.textContent.trim(), icon: Boolean(close.querySelector('svg')), heights: [...new Set(heights)]};
+    });
+    await page.screenshot({path: previewPath('video-ui', 'menu.png')});
+    await page.evaluate(() => find('button.menu-toggle')[0].click());
+    assert.ok(shape.token === '12px' && shape.radius === shape.token, JSON.stringify(shape));
+    assert.ok(shape.close === '24x24' && !shape.text && shape.icon, JSON.stringify(shape));
+    assert.ok(shape.heights.every(height => height === 28 || height === 32), JSON.stringify(shape));
+    return shape;
+  });
   await page.evaluate(() => RoamCatVideoSubtitles.unmount());
 
   live = false;

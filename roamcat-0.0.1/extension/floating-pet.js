@@ -1138,10 +1138,6 @@
         readingEnabled = false;
       }
 
-      const sw = this.shadowQuery('#reading-switch');
-      if (sw) {
-        sw.classList.toggle('active', readingEnabled);
-      }
       const quickReading = this.shadowQuery('#quick-reading');
       if (quickReading) {
         quickReading.classList.toggle('is-active', readingEnabled);
@@ -1209,7 +1205,7 @@
       const isActive = Boolean(status.active || status.displayed);
       const isTranslating = status.phase === 'translating';
 
-      // 1. Update Satellite Orbit Flip Button
+      // 1. 工具栏的双语翻译按钮
       if (this.flipBtn) {
         this.flipBtn.classList.toggle('is-active', isActive);
         this.flipBtn.classList.toggle('is-translating', isTranslating);
@@ -1227,24 +1223,7 @@
         }
       }
 
-      // 2. Update Bubble Menu Switch & Subtitle
-      const bilingualSwitch = this.shadowQuery('#bilingual-switch');
-      if (bilingualSwitch) {
-        bilingualSwitch.classList.toggle('active', isActive);
-      }
-
-      const bilingualSub = this.shadowQuery('#bilingual-status-sub');
-      if (bilingualSub) {
-        if (isTranslating) {
-          bilingualSub.textContent = T('fp.subBusy',{done:status.completed,total:status.total || '?'});
-        } else if (isActive) {
-          bilingualSub.textContent = T('fp.subReady',{done:status.completed});
-        } else {
-          bilingualSub.textContent = T('fp.subIdle');
-        }
-      }
-
-      // 3. Update Mascot Pet state
+      // 2. 猫的状态
       if (isTranslating) {
         if (petState !== 'thinking') this.setPetState('thinking');
       } else if (isActive && petState === 'thinking') {

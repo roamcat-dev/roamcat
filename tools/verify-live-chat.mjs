@@ -126,6 +126,13 @@ try {
     const shown = await page.evaluate(() => tip());
     assert.match(shown.text, /聊天翻译出错/);
     assert.equal(shown.kind, 'error');
+    // 与其他浮层同一套：圆角 --radius-xl，关闭钮是 24px 图标 X（不是「×」字符）。
+    const shape = await page.evaluate(() => {
+      const host = document.querySelector('[data-roamcat-ui="live-chat-tip"]'), root = shadows.find(item => item.host === host);
+      const box = root.querySelector('.tip'), close = root.querySelector('button'), rect = close.getBoundingClientRect(), cs = getComputedStyle(box);
+      return {radius: cs.borderTopLeftRadius, token: cs.getPropertyValue('--radius-xl').trim(), close: `${Math.round(rect.width)}x${Math.round(rect.height)}`, text: close.textContent.trim(), icon: Boolean(close.querySelector('svg'))};
+    });
+    assert.ok(shape.token === '12px' && shape.radius === shape.token && shape.close === '24x24' && !shape.text && shape.icon, JSON.stringify(shape));
     await page.screenshot({path: previewPath('live-chat', 'error-tip.png')});
     // 出错后暂停 8 秒再接新消息：等暂停过去，换回正常结果，再来一条。
     await page.evaluate(() => { qa.mode = 'ok'; });
