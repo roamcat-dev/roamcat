@@ -210,6 +210,49 @@ try {
     check(`reader 文档渲染[${theme}]`, await reader.locator('.reader-block').count() === 5);
     check(`reader 双语译文[${theme}]`, await reader.locator('.reader-translation').count() === 3);
     await shot(reader, `reader-doc-${theme}`);
+    if (theme === 'light') {
+      // 版式：正文首行约 66–75 个英文字符（按词换行留些余量）；「双语」开关不嵌套 label、有无障碍名称，点旁边的字也能切换。
+      const readerLayout = await reader.evaluate(() => {
+        const firstLine = block => {
+          // Lit 会在文本前后插注释标记，取第一个有字的文本节点。
+          const text = [...block.childNodes].find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim()), range = document.createRange();
+          let top = null, count = 0;
+          for (let i = 0; i < text.length; i++) {
+            range.setStart(text, i); range.setEnd(text, i + 1);
+            const rect = range.getClientRects()[0];
+            if (!rect) continue;
+            if (top === null) top = rect.top;
+            else if (rect.top > top + 2) break;
+            count = i + 1;
+          }
+          return count;
+        };
+        const input = document.querySelector('.reader-bilingual input');
+        return {
+          lines: [...document.querySelectorAll('.reader-role-p')].slice(0, 2).map(firstLine),
+          nestedLabel: Boolean(document.querySelector('label label, label rc-switch')),
+          switchName: input?.labels?.[0]?.textContent.trim() || '',
+        };
+      });
+      check('reader 正文行宽约 66–75 个英文字符', readerLayout.lines.every(n => n >= 60 && n <= 80), JSON.stringify(readerLayout.lines));
+      check('reader 双语开关不嵌套 label 且有无障碍名称', !readerLayout.nestedLabel && readerLayout.switchName === '双语', JSON.stringify(readerLayout));
+      await reader.locator('.reader-bilingual > span').click();
+      check('reader 点「双语」文字关掉译文', await until(reader, () => reader.locator('.reader-translation').count(), n => n === 0) === 0);
+      await reader.locator('.reader-bilingual > span').click();
+      check('reader 再点一次恢复译文', await until(reader, () => reader.locator('.reader-translation').count(), n => n === 3) === 3);
+      // 目录：打开时高亮第一章，点第二章后高亮跟过去（结尾短章滚不到阅读线也要亮）。
+      const currentSection = () => reader.evaluate(() => document.querySelector('.reader-nav-item[aria-current]')?.textContent.trim() || '');
+      check('reader 目录高亮当前章节', await until(reader, currentSection, text => text === '一 · 清晨的机器') === '一 · 清晨的机器', await currentSection());
+      await reader.locator('.reader-nav-item').nth(1).click();
+      check('reader 点目录后高亮跳到那一章', await until(reader, currentSection, text => text === '二 · 小事物的语言') === '二 · 小事物的语言', await currentSection());
+      // 目录栏吸顶位置等于工具栏实际高度：工具栏因翻译报错多出一行时目录栏跟着下移。
+      const sidebarTop = () => reader.evaluate(() => ({top: getComputedStyle(document.querySelector('.reader-sidebar')).top, toolbar: document.querySelector('.reader-toolbar').offsetHeight + 'px'}));
+      const before = await until(reader, sidebarTop, value => value.top === value.toolbar);
+      await reader.evaluate(() => { document.querySelector('roamcat-reader').error = '翻译中断：测试用的报错，让工具栏多出一行。'; });
+      const after = await until(reader, sidebarTop, value => value.top === value.toolbar && value.toolbar !== before.toolbar);
+      check('reader 目录栏随工具栏高度吸顶', before.top === before.toolbar && after.top === after.toolbar && after.toolbar !== before.toolbar, JSON.stringify({before, after}));
+      await reader.evaluate(() => { document.querySelector('roamcat-reader').error = ''; });
+    }
     await reader.close();
 
     // popup：独立页面 + 窄视口
@@ -372,6 +415,8 @@ try {
   check('content script 与 RoamCatContentUI 就绪', Boolean(petHostReady));
 
   // 弹窗主状态：在网页所在窗口里开一个后台标签页加载 popup.html，它取到的活动标签页就是这张网页（与点工具栏图标时一致）。
+  // 先查一次订阅状态：门禁里连接器宿主名换成了不存在的名字，弹窗会拿到带 host_missing 代码的连接器错误。
+  await extPage.evaluate(() => chrome.runtime.sendMessage({type: 'SUBSCRIPTION_STATUS'}).catch(() => null));
   const popupTabId = await extPage.evaluate(async base => {
     const [page] = await chrome.tabs.query({url: base + '/*'});
     return (await chrome.tabs.create({windowId: page.windowId, url: chrome.runtime.getURL('ui/popup.html'), active: false})).id;
@@ -397,6 +442,29 @@ try {
       };
     });
     check('popup 主模式双语翻译在上、副模式阅读辅助在下', modeOrder.translateFirst && modeOrder.primary.join() === 'emergency-open' && modeOrder.assistButton.includes('secondary-button'), JSON.stringify(modeOrder));
+    // 版式：两张卡都有可见卡名；同一张卡里的行标题同一档字号字重；三个行内按钮同高；普通网页也有阅读器入口。
+    const popupLayout = await pagePopup.evaluate(() => {
+      const visible = el => Boolean(el?.getClientRects().length);
+      const font = el => `${getComputedStyle(el).fontSize}/${getComputedStyle(el).fontWeight}`;
+      const cards = [...document.querySelectorAll('.popup-card:has(.popup-card-title)')].filter(visible);
+      return {
+        titles: cards.map(card => card.querySelector('.popup-card-title').textContent.trim()),
+        rowFonts: cards.map(card => [...new Set([...card.querySelectorAll('.popup-row-copy h3')].filter(visible).map(font))]),
+        heights: ['#emergency-open', '#toggle-page', '#service-menu-toggle'].map(id => Math.round(document.querySelector(id)?.getBoundingClientRect().height || 0)),
+        reader: visible(document.querySelector('#open-reader')) ? document.querySelector('#open-reader').getAttribute('aria-label') : '',
+      };
+    });
+    check('popup 两张卡有可见卡名、卡内行标题同一档字号字重', popupLayout.titles.join() === '本页,长期设置' && popupLayout.rowFonts.every(fonts => fonts.length === 1), JSON.stringify(popupLayout));
+    check('popup 「翻译本页」「开启本页」「切换」同高', new Set(popupLayout.heights).size === 1 && popupLayout.heights[0] >= 28, JSON.stringify(popupLayout.heights));
+    check('popup 普通网页上也有阅读器入口', Boolean(popupLayout.reader), JSON.stringify(popupLayout.reader));
+    // 连接器错误：正文只留一句说明，「（host_missing; 原因）」这串代码收进默认收起的「技术细节」。
+    const serviceAlert = await until(pagePopup, () => pagePopup.evaluate(() => {
+      const card = document.querySelector('#service-warning');
+      if (!card || card.hidden) return null;
+      const details = card.querySelector('.popup-tech');
+      return {copy: card.querySelector('#service-warning-copy').textContent.trim(), summary: details?.querySelector('summary').textContent.trim() || '', code: details?.querySelector('code').textContent.trim() || '', open: Boolean(details?.open)};
+    }), value => Boolean(value?.code));
+    check('popup 连接器错误只显示一句说明，代码收进「技术细节」', Boolean(serviceAlert?.copy) && serviceAlert.summary === '技术细节' && /^host_missing/.test(serviceAlert.code) && !/host_missing|[（(]/.test(serviceAlert.copy) && !serviceAlert.open, JSON.stringify(serviceAlert));
     await shot(pagePopup, 'popup-page', {minBytes: 1});
     // 「双语 / 仅译文」：默认双语；真实点击切到仅译文后后台设置跟着变，再切回双语。
     const displayChoice = () => pagePopup.evaluate(() => [...document.querySelectorAll('#emergency-display button')].map(button => `${button.dataset.display}:${button.getAttribute('aria-pressed')}`).join());

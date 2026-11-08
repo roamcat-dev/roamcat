@@ -25,7 +25,7 @@
   --rc-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --rc-display: "Silkscreen", "JetBrains Mono", "Courier New", monospace;
   /* —— 字号档位：界面文字只用这 6 档，最小 12px（中文在 Windows 上低于 12px 会发虚）。
-   *    例外只有阅读正文 --rc-type-body 与展示字（Logo、引导页大标题）。 —— */
+   *    例外只有阅读正文 --rc-type-body、阅读器长文 --rc-type-reading 与展示字（Logo、引导页大标题）。 —— */
   --rc-fs-1: 12px;
   --rc-fs-2: 13px;
   --rc-fs-3: 14px;
@@ -39,8 +39,11 @@
   --rc-type-body: 15px;
   --rc-type-control: var(--rc-fs-3);
   --rc-type-support: var(--rc-fs-2);
+  /* 阅读器 PDF/EPUB 正文：成段长文比界面正文大一档、行距更松。 */
+  --rc-type-reading: 17px;
   --rc-leading-title: 1.28;
   --rc-leading-body: 1.6;
+  --rc-leading-reading: 1.75;
   --rc-leading-control: 1.4;
   --rc-leading-support: 1.5;
   --rc-weight-regular: 400;
@@ -112,8 +115,10 @@
   --type-body: var(--rc-type-body);
   --type-control: var(--rc-type-control);
   --type-support: var(--rc-type-support);
+  --type-reading: var(--rc-type-reading);
   --leading-title: var(--rc-leading-title);
   --leading-body: var(--rc-leading-body);
+  --leading-reading: var(--rc-leading-reading);
   --leading-control: var(--rc-leading-control);
   --leading-support: var(--rc-leading-support);
   --weight-regular: var(--rc-weight-regular);
