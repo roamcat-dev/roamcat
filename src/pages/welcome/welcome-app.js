@@ -1,10 +1,12 @@
 /**
  * @file src/pages/welcome/welcome-app.js
  * 文件职责：首次安装引导 Lit 应用——功能导览、三形态交互沙盒、快捷触发键选择、
- *   偏好初始化保存。
+ *   模型服务连接检测、偏好初始化保存。
  * 主要内容：逻辑移植自 extension/ui/welcome.js（STATE_PATCH 优先、storage.local
  *   兜底、closeWelcomeGuide、speechSynthesis 试读保持不变）；light DOM 渲染保留
- *   既有 id 级测试钩子；滚动入场动画由 welcome.css 的 view() 时间线提供。
+ *   既有 id 级测试钩子；滚动入场动画由 welcome.css 的 view() 时间线提供；沙盒解构
+ *   下划线经 RoamCatDesign.structureColor 按页面明暗取色，与真实网页一致；服务一步
+ *   经 STATE_GET / SUBSCRIPTION_STATUS 只读检测，接入一律跳设置页，不在这里填密钥。
  * 模块边界：扩展页受信上下文；偏好写入仅经 request()/chrome.storage.local。
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -14,7 +16,9 @@
  */
 import {LitElement, html, svg} from 'lit';
 import {classMap} from 'lit/directives/class-map.js';
+import {styleMap} from 'lit/directives/style-map.js';
 import {request, closeWelcomeGuide} from '@ext/shared.js';
+import {CATALOG_TEMPLATES} from '@ext/ui/options-service-catalog.js';
 import {heroArt} from '../../components/hero-art.js';
 import {icon} from '../../components/icons.js';
 import {t, onUiLangChange} from '../../i18n-runtime.js';
@@ -36,6 +40,31 @@ const THEME_ICONS = {
   light: svg`<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`,
 };
 
+// 沙盒演示用到的解构成分；颜色与线宽跟真实网页一致（content.js：谓语 2px、定语/状语 1.25px、其余 1.5px）。
+const STRUCTURE_ROLES = ['subject', 'predicate', 'object', 'attributive', 'adverbial'];
+
+const SUBSCRIPTION_KINDS = ['chatgpt', 'grok', 'antigravity'];
+// 订阅三家的名称与图标取服务目录，和设置页、弹窗同名；说明是引导页自己的一句话门槛。
+const SERVICE_ROUTES = [
+  {id: 'chatgpt', desc: 'wel.svcChatgptD'},
+  {id: 'grok', desc: 'wel.svcGrokD'},
+  {id: 'antigravity', desc: 'wel.svcGoogleD'},
+];
+const providerIconUrl = name => chrome.runtime.getURL(`icons/providers/${/^[a-z0-9-]+$/u.test(name || '') ? name : 'custom-api'}.svg`);
+
+/** 当前选中的模型服务：名称、模型与图标，取法与弹窗的服务切换一致；不读任何密钥字段。 */
+function currentService(settings) {
+  if (!settings) return null;
+  if (settings.providerKind === 'api') {
+    const service = settings.apiServices?.find(value => value.id === settings.activeApiServiceId);
+    if (!service) return null;
+    const template = CATALOG_TEMPLATES.find(value => value.id === service.providerId);
+    return {name: service.name, model: service.model || '', icon: template?.icon || 'custom-api'};
+  }
+  const template = CATALOG_TEMPLATES.find(value => value.id === settings.providerKind);
+  return template ? {name: template.name, model: settings.subscriptionModel || '', icon: template.icon} : null;
+}
+
 class RoamcatWelcome extends LitElement {
   createRenderRoot() { return this; }
 
@@ -54,6 +83,18 @@ class RoamcatWelcome extends LitElement {
   #keyPulse = false;
   #pulseTimer = 0;
   #offLang = null;
+  // 服务检测：checking → ready / missing；settings 留着渲染时再取服务名，切换界面语言后名称跟着变。
+  #serviceState = 'checking';
+  #serviceSettings = null;
+  #serviceSeq = 0;
+  #darkQuery = matchMedia('(prefers-color-scheme: dark)');
+
+  #onSchemeChange = () => { if (this.#theme === 'auto') this.requestUpdate(); };
+  // 用户多半在设置页签里接好服务再切回来：回到本页、设置变化或订阅状态变化时重新检测。
+  #onVisible = () => { if (document.visibilityState === 'visible') void this.#checkService({probe: true}); };
+  #onStorageChanged = (changes, area) => { if (area === 'local' && changes.settings) void this.#checkService({probe: true}); };
+  // 订阅状态变化由后台广播；这里只重读快照不再探测，避免探测→广播→再探测打转。
+  #onRuntimeMessage = message => { if (message?.type === 'SUBSCRIPTION_UPDATED') void this.#checkService({probe: false}); };
 
   #onKeydown = event => {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
@@ -70,11 +111,20 @@ class RoamcatWelcome extends LitElement {
     // 在别的扩展页切换语言：按新语言重渲染，不重载，保留尚未保存的偏好选择。
     this.#offLang = onUiLangChange(() => { document.title = t('rd.welcomeTitle'); this.requestUpdate(); });
     window.addEventListener('keydown', this.#onKeydown);
+    this.#darkQuery.addEventListener('change', this.#onSchemeChange);
+    document.addEventListener('visibilitychange', this.#onVisible);
+    chrome.storage?.onChanged?.addListener(this.#onStorageChanged);
+    chrome.runtime?.onMessage?.addListener(this.#onRuntimeMessage);
     void this.#loadInitialSettings();
+    void this.#checkService({probe: true});
   }
 
   disconnectedCallback() {
     window.removeEventListener('keydown', this.#onKeydown);
+    this.#darkQuery.removeEventListener('change', this.#onSchemeChange);
+    document.removeEventListener('visibilitychange', this.#onVisible);
+    chrome.storage?.onChanged?.removeListener(this.#onStorageChanged);
+    chrome.runtime?.onMessage?.removeListener(this.#onRuntimeMessage);
     this.#offLang?.();
     clearTimeout(this.#pulseTimer);
     super.disconnectedCallback();
@@ -189,6 +239,108 @@ class RoamcatWelcome extends LitElement {
     void closeWelcomeGuide().catch(error => console.error('关闭新手引导失败', error));
   }
 
+  /** 页面实际明暗：跟随系统时看系统配色。 */
+  #pageTheme() {
+    if (this.#theme === 'dark' || this.#theme === 'light') return this.#theme;
+    return this.#darkQuery.matches ? 'dark' : 'light';
+  }
+
+  /** 解构成分颜色变量：和真实网页同一个取色函数，按沙盒正文所在底色的明暗取。 */
+  #structureVars() {
+    const color = globalThis.RoamCatDesign?.structureColor;
+    if (!color) return {};
+    const theme = this.#pageTheme();
+    return Object.fromEntries(STRUCTURE_ROLES.map(role => [`--sb-${role}`, color(role, theme)]));
+  }
+
+  /**
+   * 检测当前模型服务是否可用。STATE_GET 的 providerConfigured 对订阅只是内存快照（后台刚醒时
+   * 还没连），所以订阅未就绪时再用 SUBSCRIPTION_STATUS 探测一次；失败一律按未就绪处理、不报错。
+   */
+  async #checkService({probe}) {
+    const seq = ++this.#serviceSeq;
+    let ready = false;
+    let settings = null;
+    try {
+      const state = await request('STATE_GET');
+      settings = state?.settings || null;
+      ready = Boolean(state?.providerConfigured);
+      if (!ready && probe && SUBSCRIPTION_KINDS.includes(settings?.providerKind)) {
+        const status = await request('SUBSCRIPTION_STATUS', {kind: settings.providerKind, probe: true});
+        ready = Boolean(status?.authenticated);
+      }
+    } catch {
+      ready = false;
+    }
+    if (seq !== this.#serviceSeq) return;
+    this.#serviceState = ready && currentService(settings) ? 'ready' : 'missing';
+    this.#serviceSettings = settings;
+    this.requestUpdate();
+  }
+
+  #openServiceOptions() {
+    // 后台整理设置页签失败时退回浏览器自己的打开方式，至少保证设置页能出来。
+    request('OPEN_OPTIONS', {section: 'service'}).catch(() => chrome.runtime.openOptionsPage());
+  }
+
+  #renderServiceStep() {
+    const state = this.#serviceState;
+    const current = state === 'ready' ? currentService(this.#serviceSettings) : null;
+    const statusIcon = state === 'ready' ? 'check' : state === 'checking' ? 'refresh' : 'alert';
+    const title = state === 'ready' ? t('wel.svcReady', {name: current.name})
+      : state === 'checking' ? t('wel.svcChecking') : t('wel.svcMissing');
+    const detail = state === 'ready' ? t('wel.svcReadyD', {model: current.model || t('pop.defaultModel')})
+      : state === 'missing' ? t('wel.svcMissingD') : '';
+    return html`
+    <section class="welcome-step-card" id="step-service" data-state=${state} aria-labelledby="service-heading">
+      <div class="step-card-header">
+        <div class="step-badge-row">
+          <span class="step-num-badge">${t('wel.stepN',{n:3})}</span>
+        </div>
+        <h2 id="service-heading" class="step-title">${t('wel.svcTitle')}</h2>
+        <p class="step-desc">${t('wel.svcDesc')}</p>
+      </div>
+
+      <div class="service-status" role="status" aria-live="polite">
+        <span class="service-status-icon">${icon(statusIcon, {size: 18})}</span>
+        ${current ? html`<img class="provider-logo" src=${providerIconUrl(current.icon)} width="24" height="24" alt="" aria-hidden="true">` : ''}
+        <div class="service-status-text">
+          <strong id="service-status-title">${title}</strong>
+          ${detail ? html`<span>${detail}</span>` : ''}
+        </div>
+        <button type="button" id="service-open-btn" class=${classMap({'service-open-btn': true, primary: state !== 'ready'})}
+          ?disabled=${state === 'checking'} @click=${() => this.#openServiceOptions()}>
+          ${icon('settings', {size: 14})}
+          <span>${state === 'ready' ? t('wel.svcManage') : t('wel.svcConnect')}</span>
+        </button>
+      </div>
+
+      ${state === 'missing' ? html`
+      <ul class="service-route-grid" aria-label=${t('wel.svcRoutes')}>
+        ${SERVICE_ROUTES.map(route => {
+          const template = CATALOG_TEMPLATES.find(value => value.id === route.id);
+          return html`<li class="service-route" data-route=${route.id}>
+            <img class="provider-logo" src=${providerIconUrl(template?.icon)} width="24" height="24" alt="" aria-hidden="true">
+            <div class="service-route-body">
+              <span class="service-route-name">${template?.name || route.id}</span>
+              <span class="service-route-desc">${t(route.desc)}</span>
+            </div>
+            <span class="service-route-tag">${t('wel.svcViaConnector')}</span>
+          </li>`;
+        })}
+        <li class="service-route" data-route="api">
+          <img class="provider-logo" src=${providerIconUrl('custom-api')} width="24" height="24" alt="" aria-hidden="true">
+          <div class="service-route-body">
+            <span class="service-route-name">${t('wel.svcApiT')}</span>
+            <span class="service-route-desc">${t('wel.svcApiD')}</span>
+          </div>
+          <span class="service-route-tag">${t('wel.svcViaKey')}</span>
+        </li>
+      </ul>
+      <p class="service-note">${icon('shield', {size: 14})}<span>${t('wel.svcNote')}</span></p>` : ''}
+    </section>`;
+  }
+
   #renderSandboxParagraph() {
     const token = (word, hint) => html`<span class=${classMap({'sb-token': true, 'active-target': this.#selectedWord === word})} data-word=${word}
       @click=${() => this.#selectWord(word)}>${word}</span>`;
@@ -198,7 +350,7 @@ class RoamcatWelcome extends LitElement {
       return html`Careful readers ${ruby('compare', SANDBOX_WORDS.compare.rubyHint())} the evidence that each explanation provides before they reach a ${ruby('conclusion', SANDBOX_WORDS.conclusion.rubyHint())}. The cache reduces ${ruby('latency', SANDBOX_WORDS.latency.rubyHint())} significantly when network ${ruby('congestion', SANDBOX_WORDS.congestion.rubyHint())} spikes.`;
     }
     if (this.#sandboxMode === 'structure') {
-      return html`<span class="syntax-subj" title=${t('wel.subj')}>Careful readers</span> <span class="syntax-pred" title=${t('wel.pred')}>compare</span> <span class="syntax-obj" title=${t('wel.obj')}>the evidence <span class="syntax-adv" title=${t('wel.attr')}>that each explanation provides</span></span> <span class="syntax-adv" title=${t('wel.advTime')}>before they reach a conclusion</span>. <span class="syntax-subj" title=${t('wel.subj')}>The cache</span> <span class="syntax-pred" title=${t('wel.pred')}>reduces</span> <span class="syntax-obj" title=${t('wel.obj')}>latency</span> significantly <span class="syntax-adv" title=${t('wel.advCond')}>when network congestion spikes</span>.`;
+      return html`<span class="syntax-subj" title=${t('wel.subj')}>Careful readers</span> <span class="syntax-pred" title=${t('wel.pred')}>compare</span> <span class="syntax-obj" title=${t('wel.obj')}>the evidence <span class="syntax-attr" title=${t('wel.attr')}>that each explanation provides</span></span> <span class="syntax-adv" title=${t('wel.advTime')}>before they reach a conclusion</span>. <span class="syntax-subj" title=${t('wel.subj')}>The cache</span> <span class="syntax-pred" title=${t('wel.pred')}>reduces</span> <span class="syntax-obj" title=${t('wel.obj')}>latency</span> significantly <span class="syntax-adv" title=${t('wel.advCond')}>when network congestion spikes</span>.`;
     }
     return html`Careful readers ${token('compare')} the evidence that each explanation provides before they reach a ${token('conclusion')}. The cache reduces ${token('latency')} significantly when network ${token('congestion')} spikes.`;
   }
@@ -262,17 +414,13 @@ class RoamcatWelcome extends LitElement {
         </div>
         <div class="theme-switch-wrap">
           <button type="button" id="lang-toggle-btn" class="theme-switch-btn" title=${t('opt.langToggleTitle',{lang:this.#langName()})} @click=${() => this.#cycleUiLang()}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4 10z"></path>
-            </svg>
+            ${icon('globe', {size: 14})}
             <span id="lang-toggle-label">${t('opt.langBtnLabel',{label:this.#langName()})}</span>
           </button>
         </div>
         <button type="button" id="close-welcome-btn" class="welcome-options-link" @click=${() => this.#closeWelcome()}>${t('wel.closeGuide')}</button>
         <a href="options.html" class="welcome-options-link" title=${t('wel.toOptions')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82-.33l.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          ${icon('settings', {size: 14})}
           <span>${t('pop.options')}</span>
         </a>
       </div>
@@ -349,8 +497,11 @@ class RoamcatWelcome extends LitElement {
           <div class="browser-status-pill">${t('wel.englishBody')}</div>
         </div>
 
-        <div class="browser-reading-area">
+        <div class="browser-reading-area" style=${styleMap(this.#sandboxMode === 'structure' ? this.#structureVars() : {})}>
           <p class="sandbox-paragraph" id="sandbox-text">${this.#renderSandboxParagraph()}</p>
+          ${this.#sandboxMode === 'structure' ? html`<ul class="sandbox-structure-legend" aria-label=${t('wel.legendAria')}>
+            ${STRUCTURE_ROLES.map(role => html`<li data-role=${role}><span class="legend-line" aria-hidden="true"></span>${t(`design.role.${role}`)}</li>`)}
+          </ul>` : ''}
 
           <div class="sandbox-hud-card" id="sandbox-hud" ?hidden=${hudHidden}>
             <!-- 与真实解释卡片同构：词头旁是朗读按钮，下面是加粗的「词性 + 释义」、灰色语境句，再是操作按钮。真实卡片不显示音标。 -->
@@ -456,10 +607,12 @@ class RoamcatWelcome extends LitElement {
       </div>
     </section>
 
+    ${this.#renderServiceStep()}
+
     <section class="welcome-step-card" id="step-cheatsheet" aria-labelledby="cheatsheet-heading">
       <div class="step-card-header">
         <div class="step-badge-row">
-          <span class="step-num-badge">${t('wel.stepN',{n:3})}</span>
+          <span class="step-num-badge">${t('wel.stepN',{n:4})}</span>
         </div>
         <h2 id="cheatsheet-heading" class="step-title">${t('wel.csTitle')}</h2>
         <p class="step-desc">${t('wel.csDesc')}</p>
