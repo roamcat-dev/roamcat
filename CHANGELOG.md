@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-08
+
 ### 改进
 - **设置页重新分组**：侧栏改为「阅读 / 网站 / 视频与直播 / 模型服务 / 词汇与记录 / 数据与隐私 / 帮助」七组，取消「更多」。阅读组分「查词 / 解构 / 双语翻译 / 伴读猫」四个标签，原来「显示与解构」卡片里的第三层标签（原词 / 词注 / 译文）拆进对应标签；「任务分配」从服务目录最底部搬到「模型服务」下单独的标签页；「已认识词」不再分内层标签；阅读记录把「记录设置」放到最前。旧的分区链接照常可用。
 - **「双语 / 仅译文」可以在设置页改**：「阅读 → 双语翻译」新增显示方式，与弹窗和网页左下角的切换是同一项设置。
@@ -336,7 +338,8 @@ Twitch 直播聊天实时翻译；本机常驻连接服务改为配对令牌认�
 - `host_permissions` 仍为宽泛的 `http(s)://*/*`，计划改为 `optional_host_permissions` 按需申请。
 - 未上架商店；扩展仅支持开发者模式加载（直接加载 `roamcat-0.0.1/extension` 时 ID 与目录路径绑定；`npm run build` 产物 ID 固定）。
 
-[Unreleased]: https://github.com/roamcat-dev/roamcat/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/roamcat-dev/roamcat/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.9.0
 [0.8.1]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.8.1
 [0.8.0]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.8.0
 [0.7.2]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.7.2
