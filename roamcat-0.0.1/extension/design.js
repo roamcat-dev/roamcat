@@ -21,8 +21,10 @@
     --rc-type-body: 15px;
     --rc-type-control: var(--rc-fs-3);
     --rc-type-support: var(--rc-fs-2);
+    --rc-type-reading: 17px;
     --rc-leading-title: 1.28;
     --rc-leading-body: 1.6;
+    --rc-leading-reading: 1.75;
     --rc-leading-control: 1.4;
     --rc-leading-support: 1.5;
     --rc-weight-regular: 400;
@@ -82,8 +84,10 @@
     --type-body: var(--rc-type-body);
     --type-control: var(--rc-type-control);
     --type-support: var(--rc-type-support);
+    --type-reading: var(--rc-type-reading);
     --leading-title: var(--rc-leading-title);
     --leading-body: var(--rc-leading-body);
+    --leading-reading: var(--rc-leading-reading);
     --leading-control: var(--rc-leading-control);
     --leading-support: var(--rc-leading-support);
     --weight-regular: var(--rc-weight-regular);

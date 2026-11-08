@@ -1,6 +1,6 @@
 /**
  * @file src/pages/reader/reader-app.js
- * 文件职责：PDF/EPUB 阅读器——解包为阅读块流、侧栏目录导航、按批次调用 READER_TRANSLATE
+ * 文件职责：PDF/EPUB 阅读器——解包为阅读块流、侧栏目录导航（高亮当前章节）、按批次调用 READER_TRANSLATE
  *   做块级双语翻译；本地文件经文件选择器、远程 PDF 经 ?src= 参数与导航重定向进入。
  * 主要内容：按需 loadPdf（pdfjs worker + 首批正文渐进显示）、loadEpub（独立解析线程）、80 块分页、translationBatches
  *   与后台 normalizeEmergencyItems 契约一致（1–4 项 / ≤12000 字符）。
@@ -11,7 +11,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-import {LitElement, html} from 'lit';
+import {LitElement, html, nothing} from 'lit';
 import {request} from '@ext/shared.js';
 import {loadEpub} from './epub-loader.js';
 import {joinTranslationParts, translationBatches} from './pdf-blocks.mjs';
@@ -23,6 +23,7 @@ import {t, onUiLangChange} from '../../i18n-runtime.js';
 const ENGLISH_RE = /[A-Za-z]/u;
 const PAGE_BLOCKS=80,MAX_FILE_BYTES=64*1024*1024;
 const MAX_FAILED_BATCHES = 3;
+const PIN_RELEASE_EVENTS = ['wheel', 'keydown', 'touchstart', 'pointerdown'];
 // 鉴权失败、额度用完、服务没连上：换哪一批都一样失败，整本书立即停下，提示检查密钥或登录。
 const STOP_CODES = new Set(['AUTH', 'QUOTA', 'NOT_READY', 'SERVICE_AUTH', 'STDERR_AUTH']);
 // 只有结果格式、条目对不上这类问题才拆成单条重试（模型偶发漏条、夹杂格式）；限流、超时、网络故障拆开只会多发请求，按批记失败。
@@ -45,7 +46,8 @@ export class RoamcatReader extends LitElement {
     progress: {state: true},
     translating: {state: true},
     parsing: {state: true},
-    pageIndex: {state: true}
+    pageIndex: {state: true},
+    currentAnchor: {state: true}
   };
   createRenderRoot() { return this; }
   constructor() {
@@ -65,11 +67,66 @@ export class RoamcatReader extends LitElement {
     this.parsing=false;
     this._nextId = 1;
     this.pageIndex=0;this._openId=0;
+    this.currentAnchor = '';
   }
 
   firstUpdated() {
     const src = new URLSearchParams(location.search).get('src');
     if (src) void this.openRemote(src);
+  }
+
+  updated(changed) {
+    if (changed.has('blocks') || changed.has('pageIndex') || changed.has('view')) this.#syncCurrentSection();
+    if (changed.has('currentAnchor')) this.#revealCurrentSection();
+  }
+
+  // 目录栏吸顶位置与章节锚点的滚动偏移跟着工具栏实际高度走：窄屏换行、出现翻译报错时工具栏会变高。
+  #observeToolbar() {
+    const toolbar = this.querySelector('.reader-toolbar');
+    if (!toolbar || this._toolbarObserver) return;
+    this._toolbarObserver = new ResizeObserver(() => {
+      this._toolbarHeight = toolbar.offsetHeight;
+      this.style.setProperty('--reader-toolbar-h', this._toolbarHeight + 'px');
+    });
+    this._toolbarObserver.observe(toolbar);
+  }
+
+  #onScroll = () => {
+    if (this._scrollFrame) return;
+    this._scrollFrame = requestAnimationFrame(() => { this._scrollFrame = 0; this.#syncCurrentSection(); });
+  };
+  // 从目录跳转后钉住那一章：平滑滚动途中不在经过的章节间闪烁，结尾太短、滚不到阅读线的章节也能高亮。
+  // 读者自己滚动（滚轮、按键、触摸、点按）时松开；拖滚动条滚完、那一章已不在视口里时也松开。
+  #releasePin = () => { this._pinnedAnchor = ''; };
+  #onScrollEnd = () => {
+    if (!this._pinnedAnchor) return;
+    const top = this.querySelector('#' + CSS.escape(this._pinnedAnchor))?.getBoundingClientRect().top;
+    if (top === undefined || top < (this._toolbarHeight || 0) || top >= innerHeight) { this._pinnedAnchor = ''; this.#syncCurrentSection(); }
+  };
+
+  // 当前章节 = 工具栏下方阅读线以上的最后一个章节锚点；滚到底时阅读线放到视口底部（取最后露出来的那一章）；
+  // 本分页里还没读到锚点时，沿用前面分页最后开始的那一章。
+  #syncCurrentSection() {
+    if (this.view !== 'ready' || !this.sidebar.length) return;
+    const atBottom = scrollY > 0 && scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
+    const line = atBottom ? innerHeight : (this._toolbarHeight || 0) + innerHeight * 0.25;
+    if (this._pinnedAnchor && !this.querySelector('#' + CSS.escape(this._pinnedAnchor))) this._pinnedAnchor = '';
+    let current = this._pinnedAnchor || '';
+    if (!current) for (const anchor of this.querySelectorAll('.reader-flow .reader-anchor')) {
+      if (anchor.getBoundingClientRect().top >= line) break;
+      current = anchor.id;
+    }
+    for (let index = this.pageIndex * PAGE_BLOCKS - 1; !current && index >= 0; index--) current = this.blocks[index]?.anchor || '';
+    current ||= this.sidebar[0].anchor;
+    if (current !== this.currentAnchor) this.currentAnchor = current;
+  }
+
+  // 目录很长时，让高亮的那一项留在目录栏可见范围内（只滚目录栏，不动正文）。
+  #revealCurrentSection() {
+    const nav = this.querySelector('.reader-sidebar'), item = nav?.querySelector('[aria-current]');
+    if (!item) return;
+    if (item.offsetTop < nav.scrollTop) nav.scrollTop = item.offsetTop;
+    else if (item.offsetTop + item.offsetHeight > nav.scrollTop + nav.clientHeight) nav.scrollTop = item.offsetTop + item.offsetHeight - nav.clientHeight;
   }
 
   async openRemote(url, {withCredentials = false} = {}) {
@@ -124,8 +181,19 @@ export class RoamcatReader extends LitElement {
 
   beginOpen(){this._translationProgressCleanup?.();this._loadController?.abort();this._loadController=new AbortController();this._translationParts.clear();this.translating=false;this.parsing=true;this.pageIndex=0;this.error='';this.remoteUrl='';this.remoteStatus=null;return {id:++this._openId,signal:this._loadController.signal};}
   // 在别的扩展页切换语言：按新语言重渲染，不重载，已打开的文档与译文保留。
-  connectedCallback(){super.connectedCallback();this._offLang=onUiLangChange(()=>this.requestUpdate());}
-  disconnectedCallback(){this._translationProgressCleanup?.();this._loadController?.abort();this._openId++;this._offLang?.();super.disconnectedCallback();}
+  connectedCallback(){
+    super.connectedCallback();this._offLang=onUiLangChange(()=>this.requestUpdate());
+    addEventListener('scroll',this.#onScroll,{passive:true});addEventListener('scrollend',this.#onScrollEnd);
+    for(const type of PIN_RELEASE_EVENTS)addEventListener(type,this.#releasePin,{passive:true,capture:true});
+    void this.updateComplete.then(()=>{if(this.isConnected)this.#observeToolbar();});
+  }
+  disconnectedCallback(){
+    this._translationProgressCleanup?.();this._loadController?.abort();this._openId++;this._offLang?.();
+    removeEventListener('scroll',this.#onScroll);removeEventListener('scrollend',this.#onScrollEnd);
+    for(const type of PIN_RELEASE_EVENTS)removeEventListener(type,this.#releasePin,{capture:true});cancelAnimationFrame(this._scrollFrame);this._scrollFrame=0;
+    this._toolbarObserver?.disconnect();this._toolbarObserver=null;
+    super.disconnectedCallback();
+  }
   async openData(data, name,opening=this.beginOpen()) {
     this.blocks = [];
     this.translations = new Map();
@@ -288,10 +356,10 @@ export class RoamcatReader extends LitElement {
 
   async scrollTo(anchor) {
     const index=this.blocks.findIndex(block=>block.anchor===anchor);if(index<0)return;
-    this.pageIndex=Math.floor(index/PAGE_BLOCKS);await this.updateComplete;
+    this.pageIndex=Math.floor(index/PAGE_BLOCKS);this._pinnedAnchor=anchor;this.currentAnchor=anchor;await this.updateComplete;
     this.querySelector('#' + anchor)?.scrollIntoView({block: 'start', behavior: 'smooth'});
   }
-  async changePage(index){this.pageIndex=Math.max(0,Math.min(Math.ceil(this.blocks.length/PAGE_BLOCKS)-1,index));await this.updateComplete;this.querySelector('.reader-flow')?.scrollIntoView({block:'start'});}
+  async changePage(index){this._pinnedAnchor='';this.pageIndex=Math.max(0,Math.min(Math.ceil(this.blocks.length/PAGE_BLOCKS)-1,index));await this.updateComplete;this.querySelector('.reader-flow')?.scrollIntoView({block:'start'});}
   renderPager(){const pages=Math.ceil(this.blocks.length/PAGE_BLOCKS);if(pages<2)return '';return html`<nav class="reader-pager" aria-label=${t('rd.pagination')}><button class="rc-button" ?disabled=${this.pageIndex===0} @click=${()=>this.changePage(this.pageIndex-1)}>${t('rd.previous')}</button><span role="status">${t('rd.pageOf',{current:this.pageIndex+1,total:pages})}</span><button class="rc-button" ?disabled=${this.pageIndex>=pages-1} @click=${()=>this.changePage(this.pageIndex+1)}>${t('rd.next')}</button></nav>`;}
 
   openFilePicker() {
@@ -335,7 +403,10 @@ export class RoamcatReader extends LitElement {
           <div class="reader-actions">
             ${this.progress ? html`<span class="reader-progress">${this.progress}</span>` : ''}
             ${this.view === 'ready' ? html`
-              <label class="reader-bilingual"><rc-switch .checked=${this.bilingual} @change=${event => { this.bilingual = event.target.checked; }}></rc-switch><span>${t('rd.bilingual')}</span></label>
+              <span class="reader-bilingual">
+                <rc-switch id="reader-bilingual" .checked=${this.bilingual} label=${t('rd.bilingual')} @change=${event => { this.bilingual = event.target.checked; }}></rc-switch>
+                <span aria-hidden="true" @click=${() => this.querySelector('#reader-bilingual input')?.click()}>${t('rd.bilingual')}</span>
+              </span>
               <button class="rc-button rc-primary" ?disabled=${this.translating||this.parsing} @click=${this.translateAll}>${this.translating ? t('rd.translatingBtn') : t('rd.transAll')}</button>
             ` : ''}
             <button class="rc-button" @click=${this.openFilePicker}>${t('rd.open')}</button>
@@ -382,7 +453,7 @@ export class RoamcatReader extends LitElement {
       <div class="reader-body">
         <nav class="reader-sidebar" aria-label=${t('rd.toc')}>
           ${this.sidebar.map(item => html`
-            <button class="reader-nav-item" @click=${() => this.scrollTo(item.anchor)} title=${item.label}>${item.label}</button>`)}
+            <button class="reader-nav-item" aria-current=${item.anchor === this.currentAnchor ? 'location' : nothing} @click=${() => this.scrollTo(item.anchor)} title=${item.label}>${item.label}</button>`)}
         </nav>
         <main class="reader-flow">
           ${this.renderPager()}
