@@ -76,6 +76,8 @@ try{
   const videoPick=(name,value)=>page.locator(`label:has(input[name="${name}"][value="${value}"])`).click();
   const savedVideo=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('qa-settings')).video||{});
   await page.goto(base+'/ui/options.html#video');await ready();
+  // 回归：分区切换曾用 View Transition，过渡的约半秒里命中测试只落在根元素上，刚切过来就点的控件全部落空。
+  assert.equal(await page.evaluate(()=>{const label=document.querySelector('input[name="video-translation-color"][value="cyan"]').closest('label'),rect=label.getBoundingClientRect();return label.contains(document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2));}),true,'切换分区后控件应立即可点');
   assert.equal(await page.locator('input[name="video-font-size"]:checked').inputValue(),'20');
   await videoPick('video-translation-color','cyan');await page.waitForFunction(()=>JSON.parse(localStorage.getItem('qa-settings')).video?.translationColor==='cyan');
   assert.equal(await page.locator('#video-caption-preview').evaluate(el=>el.dataset.color),'cyan');

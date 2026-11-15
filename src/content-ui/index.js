@@ -17,6 +17,7 @@ import {render, html, nothing} from 'lit-html';
 import {ref} from 'lit-html/directives/ref.js';
 import {unsafeHTML} from 'lit-html/directives/unsafe-html.js';
 import {icon, domainIconName} from '../components/icons.js';
+import {parseCssColor} from './css-color.mjs';
 
 const designCss = (selector, theme) => {
   try { return globalThis.RoamCatDesign?.cssFor?.(selector, theme) || ''; } catch { return ''; }
@@ -25,10 +26,12 @@ const designCss = (selector, theme) => {
 const q = root => selector => root.querySelector(selector);
 
 // ---------- 网页明暗判断（页内卡片与伴读猫共用；伴读猫关掉时页内卡片也按网页本身的明暗显示） ----------
+// 颜色计算值 → sRGB：oklch()/lab()/color() 等写法由 css-color.mjs 换算；伴读猫的底色取样与解构配色也走这个出口。
+export const cssColor = parseCssColor;
+// 几乎全透明的颜色不算底色，继续往上找。
 const colorOf = value => {
-  if (!value || value === 'transparent') return null;
-  const [r, g, b, a] = (value.match(/[0-9.]+/g) || []).map(Number);
-  return b === undefined || (a !== undefined && a < 0.1) ? null : {r, g, b};
+  const color = parseCssColor(value);
+  return color && color.a >= 0.1 ? color : null;
 };
 const lightness = ({r, g, b}) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 const backgroundOf = el => {

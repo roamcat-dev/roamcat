@@ -181,7 +181,7 @@ const LIMIT_ERROR = T('c.limit');
   function brandIcon(){return runtime.getURL(pageTheme()==='light'?'icons/roamcat-light.svg':'icons/roamcat.svg');}
   const contentUI=globalThis.RoamCatContentUI;
   function createBrandLabel(context=''){return contentUI.brandLabel(brandIcon(),context);}
-  const pageStatus={host:null,root:null,timer:0,lines:new Map(),dismissed:new Map(),selected:null};
+  const pageStatus={host:null,root:null,timer:0,lines:new Map(),dismissed:new Map(),selected:null,spoken:''};
   const statusPriority={support:1,structure:2,emergency:3,passage:4,lookup:5,'context-help':5,known:6};
   // 这些错误照原话显示，不换成笼统的「暂未完成 / 已停止」：右键帮助的原因本身就是下一步怎么做（如「选区跨了段落，请在同一段里选」）；
   // 整页翻译的状态行带着出错原因与「已译几段、失败几段」，以前伴读猫一律说「整页翻译已停止」，其实翻译常常还在继续。
@@ -218,8 +218,10 @@ const LIMIT_ERROR = T('c.limit');
     const petPresent=Boolean(globalThis.RoamCatPet?.isMounted?.()&&globalThis.RoamCatPet?.isEnabled?.());
     if(petPresent){
       removePageStatus();
-      if(!selected){globalThis.RoamCatPet.clearStatusSpeech();return;}
+      // 只收回自己经伴读猫说出去的那句：状态到期时气泡里可能已是猫自己的提示（开启失败、复制结果、语录），不能顺手清掉。
+      if(!selected){const spoken=pageStatus.spoken;pageStatus.spoken='';if(spoken)globalThis.RoamCatPet.clearStatusSpeech(spoken);return;}
       const copy=selected.error&&!verbatimStatus.has(selected.key)?(T(statusFailures[selected.key]||'c.fail.fallback')):selected.error?withoutTraceTag(selected.text):selected.text;
+      pageStatus.spoken=selected.key;
       globalThis.RoamCatPet.speakStatus(copy,{key:selected.key,busy:Boolean(selected.busy&&!selected.error),error:Boolean(selected.error),duration:selected.expiresAt?Math.max(0,selected.expiresAt-now):0});
       return;
     }
@@ -245,7 +247,7 @@ const LIMIT_ERROR = T('c.limit');
     if(previous?.text===text&&previous.error===error&&previous.busy===busy)return;
     const now=Date.now();pageStatus.lines.set(key,{key,text,error,busy,showAt:busy&&!error?(previous?.busy?previous.showAt:now+600):now,expiresAt:duration?now+duration:0});renderPageStatus();
   }
-  function clearPageStatus(){clearTimeout(pageStatus.timer);pageStatus.timer=0;pageStatus.lines.clear();pageStatus.dismissed.clear();removePageStatus();globalThis.RoamCatPet?.clearStatusSpeech?.();}
+  function clearPageStatus(){clearTimeout(pageStatus.timer);pageStatus.timer=0;pageStatus.lines.clear();pageStatus.dismissed.clear();pageStatus.spoken='';removePageStatus();globalThis.RoamCatPet?.clearStatusSpeech?.();}
   function updatePassageStatus(outcome='cancelled'){const count=state.passageRequests.size;
     setPageStatus('passage',count?T('c.translatingN',{n:count>1?T('c.nSpots',{n:count}):''}):outcome==='complete'?T('c.transComplete'):outcome==='error'?T('c.transIncomplete'):T('c.transCancelled'),{busy:count>0,error:!count&&outcome==='error',duration:count?0:3000});
   }
@@ -404,7 +406,8 @@ const LIMIT_ERROR = T('c.limit');
   function validSentenceEntry(entry){if(!entry.block?.isConnected)return false;const mapping=textMap(entry.block);return mapping.text===entry.sourceText&&mapping.text.slice(entry.start,entry.end)===entry.sentence;}
   const structureRoles=globalThis.RoamCatDesign?.structureRoles||{};
   const structureColor=globalThis.RoamCatDesign?.structureColor||(()=>'#64748b');
-  function sentenceColor(block,role){const rgb=getComputedStyle(block).color.match(/[\d.]+/g)?.slice(0,3).map(Number)||[32,32,32];return structureColor(role,(.2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2])>145?'dark':'light');}
+  // 正文文字亮说明底色深：按文字颜色取解构配色；颜色换算走 content-ui（oklch()/lab() 等写法），认不出按深色文字算。
+  function sentenceColor(block,role){const rgb=contentUI.cssColor?.(getComputedStyle(block).color)||{r:32,g:32,b:32};return structureColor(role,(.2126*rgb.r+.7152*rgb.g+.0722*rgb.b)>145?'dark':'light');}
 
   function removeStructureCard(){sentenceGroups.card?.host.remove();sentenceGroups.card=null;}
   function removeStructureControl(){setPageStatus('structure',null);removeStructureCard();sentenceGroups.hits=[];}

@@ -28,10 +28,9 @@ roamcat-options { display: contents; }
 /* =============================================================
  * 动效：分区切换、侧栏折叠、宣言弹层
  * ----------------------------------------------------------- */
-::view-transition-old(root) { animation: rc-vt-fade-out var(--rc-dur-med) var(--rc-ease-in) both; }
-::view-transition-new(root) { animation: rc-vt-fade-in var(--rc-dur-slow) var(--rc-ease-out) both; }
-@keyframes rc-vt-fade-out { to { opacity: 0; } }
-@keyframes rc-vt-fade-in { from { opacity: 0; translate: 0 var(--rc-space-3); } }
+/* 分区切换：新分区淡入上移（options-app.js 切换时加 .section-entering，播完去掉）。只动透明度与位移，期间控件照常可点。 */
+.settings-section.section-entering { animation: rc-section-in var(--rc-dur-slow) var(--rc-ease-out) both; }
+@keyframes rc-section-in { from { opacity: 0; translate: 0 var(--rc-space-3); } }
 
 .sidebar {
   transition: width var(--rc-dur-med) var(--rc-ease-standard),

@@ -1239,6 +1239,8 @@
       const bubble = this.shadowQuery('#cat-speech');
       const textEl = this.shadowQuery('#speech-text');
       if (!bubble || !textEl) return;
+      // 记下这句是谁说的：网页状态条带自己的 key，伴读猫自己的提示为空。
+      this._speechKey = key;
 
       // Ensure friendly cat voice tone
       let formatted = text.trim();
@@ -1276,7 +1278,11 @@
       return this.speakStatus(text, options);
     }
 
+    // 带 key 的清除只清那个来源说的话：网页状态条到期时，气泡里若已换成伴读猫自己的提示或语录，就不动它。
+    // 不带 key（关闭钮、到时自动收起、整体复位）照旧清掉当前气泡。
     clearStatusSpeech(key = '') {
+      if (key && this._speechKey !== key) return;
+      this._speechKey = '';
       clearTimeout(this._speechTimer);
       const bubble = this.shadowQuery('#cat-speech');
       const textEl = this.shadowQuery('#speech-text');
