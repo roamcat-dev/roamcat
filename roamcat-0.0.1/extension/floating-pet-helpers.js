@@ -49,13 +49,11 @@
     return { words: totalWords, minutes };
   }
 
+  // 颜色换算与 content-ui 共用：oklch()/lab()/color() 的计算值不是 rgb()，按数字硬读会把白底当成黑底。
+  // 几乎全透明的不算底色；认不出的写法返回 null，交给上一层继续找。
   function parseRgba(colorStr) {
-    if (!colorStr || colorStr === 'transparent' || colorStr === 'rgba(0, 0, 0, 0)') return null;
-    const match = colorStr.match(/[\d.]+/g);
-    if (!match || match.length < 3) return null;
-    const [r, g, b, a] = match.map(Number);
-    if (a !== undefined && a < 0.1) return null;
-    return { r, g, b, a: a ?? 1 };
+    const color = globalThis.RoamCatContentUI?.cssColor?.(colorStr);
+    return color && color.a >= 0.1 ? color : null;
   }
 
   function getLuminance(r, g, b) {

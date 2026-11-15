@@ -133,6 +133,7 @@
       textEl.replaceChildren(zhLine, enLine, authorLine);
       textEl.title = [quote.zh, quote.en].filter(Boolean).join(' ');
 
+      this._speechKey = '';
       bubble.classList.remove('is-busy', 'is-error');
       bubble.classList.add('speaking', 'quote');
       this.container?.classList.add('has-speech');

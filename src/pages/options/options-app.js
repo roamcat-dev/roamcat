@@ -303,24 +303,36 @@ class RoamcatOptions extends LitElement {
     if (anchor) setTimeout(() => $(anchor)?.scrollIntoView({block: 'start'}), 150);
     const previous = this.#section;
     if (section === previous && !initial) return;
-    // 先同步记下目标分区：视图过渡的回调是异步的，连续切换时只渲染最后一次的目标。
     this.#section = section;
-    const mutate = () => {
-      const current = this.#section;
-      for (const name of SECTIONS) { const el = $(name); if (el) el.hidden = name !== current; }
-      this.#syncChrome(current);
-      this.#resetScroll();
-    };
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!initial && typeof document.startViewTransition === 'function' && !reduced) {
-      document.startViewTransition(mutate);
-      // 过渡回调要等下一帧；后台或被遮挡的窗口可能迟迟不出帧，到点仍未切换就直接切（mutate 可重复执行）。
-      setTimeout(() => { if ($(this.#section)?.hidden) mutate(); }, 120);
-    } else {
-      mutate();
+    // 分区同步切换，新分区自己淡入。不用 document.startViewTransition：过渡期间整页由快照层代替，
+    // 命中测试只落在根元素上，切换后的约半秒里点任何控件都落空（给过渡层设 pointer-events:none 也没用，
+    // 被快照的内容本身不参与命中）；途中改窗口大小还会抛未捕获的 InvalidStateError。
+    for (const name of SECTIONS) {
+      const el = $(name);
+      if (!el) continue;
+      el.hidden = name !== section;
+      el.classList.remove('section-entering');
     }
+    this.#syncChrome(section);
+    this.#resetScroll();
+    if (!initial) this.#playSectionEnter($(section));
     if (!initial && previous) $('section-title')?.focus({preventScroll: true});
     this.#controller?.optionsSectionEnter(section, previous);
+  }
+
+  // 新分区淡入上移（样式在 options.css 的 .section-entering）；动画只改透明度与位移，期间控件照常可点。
+  #playSectionEnter(el) {
+    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    void el.offsetWidth;
+    el.classList.add('section-entering');
+    const done = event => {
+      if (event.target !== el) return;
+      el.classList.remove('section-entering');
+      el.removeEventListener('animationend', done);
+      el.removeEventListener('animationcancel', done);
+    };
+    el.addEventListener('animationend', done);
+    el.addEventListener('animationcancel', done);
   }
 
   #syncChrome(section) {

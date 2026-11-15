@@ -57,7 +57,13 @@ const until = async (page, probe, ok, timeout = 4000) => {
   return value;
 };
 const settled = async page => {
-  await until(page, () => page.evaluate(() => document.getAnimations().filter(a => a.playState === 'running' && a.effect?.getTiming?.().iterations !== Infinity).length).catch(() => 0), n => n === 0, 3000);
+  // 开放 shadow root 里的过渡（伴读猫气泡、摘要窗）也要等完：只看 document.getAnimations() 会漏掉它们，
+  // 量到的就是缩放到一半的尺寸（24px 的关闭钮量成 23px）或过渡中间的颜色。
+  await until(page, () => page.evaluate(() => {
+    const roots = [document];
+    for (let index = 0; index < roots.length; index++) for (const el of roots[index].querySelectorAll('*')) if (el.shadowRoot) roots.push(el.shadowRoot);
+    return [...new Set(roots.flatMap(root => root.getAnimations()))].filter(a => a.playState === 'running' && a.effect?.getTiming?.().iterations !== Infinity).length;
+  }).catch(() => 0), n => n === 0, 3000);
   await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => requestAnimationFrame(resolve)); setTimeout(resolve, 500); })).catch(() => {});
 };
 // 版式体检（只看可见元素）：一字一行的竖排挤压、单行省略且没有悬停提示的截断文字、右边缘超出视口的元素。
@@ -505,9 +511,11 @@ try {
     const box = root.querySelector(card), cs = getComputedStyle(box), b = box.getBoundingClientRect(), x = close ? root.querySelector(close) : null;
     const xr = x?.getBoundingClientRect();
     return {radius: cs.borderTopLeftRadius, token: cs.getPropertyValue('--radius-xl').trim(),
-      close: x ? {size: Math.round(xr.width) + 'x' + Math.round(xr.height), text: x.textContent.trim(), icon: Boolean(x.querySelector('svg')),
+      // 尺寸取布局尺寸（offsetWidth/offsetHeight）：卡片入场有缩放动画，关闭的 shadow root 里的动画又等不到，
+      // 按 getBoundingClientRect 量会把 24px 的关闭钮量成 23px。
+      close: x ? {size: x.offsetWidth + 'x' + x.offsetHeight, text: x.textContent.trim(), icon: Boolean(x.querySelector('svg')),
         corner: xr.right >= b.right - 32 && xr.top <= b.top + 32} : null,
-      heights: buttons ? [...root.querySelectorAll(buttons)].filter(el => el.getClientRects().length).map(el => Math.round(el.getBoundingClientRect().height)) : []};
+      heights: buttons ? [...root.querySelectorAll(buttons)].filter(el => el.getClientRects().length).map(el => el.offsetHeight) : []};
   }`;
   const floatOk = shape => Boolean(shape) && shape.token === '12px' && shape.radius === shape.token
     && (!shape.close || (shape.close.size === '24x24' && !shape.close.text && shape.close.icon && shape.close.corner))
@@ -589,9 +597,17 @@ try {
     root.setAttribute('data-theme', 'dark');
     const forced = UI.pageTheme();
     if (before === null) root.removeAttribute('data-theme'); else root.setAttribute('data-theme', before);
-    return {plain, forced};
+    // 回归：oklch 背景的计算值不是 rgb()，曾按数字硬读把 shadcn / Tailwind v4 的白底判成深色。
+    const body = document.body, background = body.style.backgroundColor;
+    body.style.backgroundColor = 'oklch(1 0 0)';
+    const oklchLight = UI.pageThemeHint(), oklchComputed = getComputedStyle(body).backgroundColor;
+    body.style.backgroundColor = 'oklch(0.145 0 0)';
+    const oklchDark = UI.pageThemeHint();
+    body.style.backgroundColor = background;
+    return {plain, forced, oklchLight, oklchDark, oklchComputed};
   }`);
   check('网页明暗判断：浅色页 light、data-theme=dark 判 dark', themeHint?.plain === 'light' && themeHint?.forced === 'dark', JSON.stringify(themeHint));
+  check('网页明暗判断：oklch 白底判 light、oklch 深底判 dark', themeHint?.oklchLight === 'light' && themeHint?.oklchDark === 'dark' && /^oklch/.test(themeHint?.oklchComputed || ''), JSON.stringify(themeHint));
 
   // B3. 解构详情卡（真实 structureRoles/structureColors）
   await execInTab(`() => {
@@ -815,10 +831,12 @@ try {
     }
     for (const [kind, text] of [['busy', '正在解构正文 喵~'], ['error', '辅助服务还没连上，去设置里连接后再试 喵~']]) {
       await execInTab(`() => globalThis.RoamCatPet.speakStatus(${JSON.stringify(text)}, {${kind}: true, duration: 60000})`);
-      const tone = await until(tab, bubbleTone, v => v.cls.includes('speaking') && v.cls.includes('is-' + kind));
+      // 描边色有 0.2s 过渡，刚换上类名时读到的是中间值：轮询到描边等于目标色为止（到点仍不等就按最后一次读数判失败）。
+      const wanted = v => (kind === 'busy' ? v.warning : v.danger);
+      const tone = await until(tab, bubbleTone, v => v.cls.includes('speaking') && v.cls.includes('is-' + kind) && v.border === wanted(v));
       await settled(tab);
       check(`伴读猫${kind === 'busy' ? '忙碌' : '出错'}气泡描边取 ${kind === 'busy' ? '--warning' : '--danger'}[${theme}]`,
-        tone.border === (kind === 'busy' ? tone.warning : tone.danger), JSON.stringify(tone));
+        tone.cls.includes('is-' + kind) && tone.border === wanted(tone), JSON.stringify(tone));
       const box = await tab.locator('#cat-speech').boundingBox();
       if (box) {
         const x = Math.max(0, box.x - 16), y = Math.max(0, box.y - 16);
