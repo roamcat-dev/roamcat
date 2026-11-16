@@ -278,6 +278,19 @@ try {
       && state?.tip === (enabled ? '阅读辅助进行中 · 点击暂停 (Alt+Shift+S)' : '阅读辅助已暂停 · 点击开启 (Alt+Shift+S)'), JSON.stringify(state));
   }
 
+  // ---------- 9b. 网页自己的脚本伪造点击与快捷键：不触发翻译与提炼 ----------
+  // 伴读猫的 shadow root 是 open 的，网页脚本拿得到按钮；会调用模型的入口只认真人操作（isTrusted）。
+  await tab.evaluate(() => {
+    const root = document.getElementById('roamcat-pet-host')?.shadowRoot;
+    root?.querySelector('.roamcat-flip-btn')?.click();
+    root?.querySelector('#quick-summary')?.click();
+    for (const key of ['T', 'M']) window.dispatchEvent(new KeyboardEvent('keydown', {key, altKey: true, shiftKey: true, bubbles: true, cancelable: true}));
+  });
+  await new Promise(resolve => setTimeout(resolve, 600)); // 断言「不会发生」：留一段观察窗口。
+  st = await petState();
+  check('网页脚本伪造的点击与快捷键不触发翻译与提炼', Boolean(st) && !st.speechCls.includes('speaking') && await summaryOpen() === 0,
+    `speech=${st?.speech} summaryOpen=${await summaryOpen()}`);
+
   // ---------- 10. 双语翻译：无服务时走错误播报 ----------
   // 无服务时先播「还没连上 / 启动失败」，随后整页翻译的状态行（照原话：「辅助服务尚未连接……」）会接替它，两者都算错误反馈。
   await tab.locator('.roamcat-flip-btn').click();

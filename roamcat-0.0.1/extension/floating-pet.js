@@ -320,8 +320,11 @@
       // Orbit Flip Button Click & Hover
       if (this.flipBtn) this.flipBtn.draggable = false;
       this.flipBtn?.addEventListener('dragstart', (e) => e.preventDefault());
+      // 伴读猫的 shadow root 是 open 的，网页脚本拿得到按钮，也能往 window 派发按键：会调用模型或改设置的入口
+      // 一律只认真人操作（isTrusted），否则任意网页都能替读者发起整页翻译、提炼摘要，白白消耗模型额度。
       this.flipBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!e.isTrusted) return;
         this.toggleBilingual();
       });
 
@@ -339,6 +342,7 @@
         button.addEventListener('dragstart', (e) => e.preventDefault());
         button.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (!e.isTrusted) return;
           if (action.closeDock) this.closeQuickDock();
           action.run();
         });
@@ -348,10 +352,12 @@
       // 缩放控制：步进 80%–160%，持久化到设置
       this.shadowQuery('#zoom-out')?.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!e.isTrusted) return;
         this.zoomOut();
       });
       this.shadowQuery('#zoom-in')?.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!e.isTrusted) return;
         this.zoomIn();
       });
 
@@ -423,11 +429,13 @@
         this.closeSummary();
       });
 
-      this.shadowQuery('#summary-header-refresh')?.addEventListener('click', () => {
+      this.shadowQuery('#summary-header-refresh')?.addEventListener('click', (e) => {
+        if (!e.isTrusted) return;
         this.requestArticleSummary();
       });
 
-      this.shadowQuery('#summary-footer-refresh')?.addEventListener('click', () => {
+      this.shadowQuery('#summary-footer-refresh')?.addEventListener('click', (e) => {
+        if (!e.isTrusted) return;
         this.requestArticleSummary();
       });
 
@@ -501,6 +509,9 @@
           }
           return;
         }
+
+        // 快捷键同样只认真人按键：网页脚本派发的 KeyboardEvent 不触发提炼与翻译。
+        if (!e.isTrusted) return;
 
         if (e.altKey && e.shiftKey && (e.key === 'M' || e.key === 'm')) {
           if (petShortcutBlocked(e)) return;

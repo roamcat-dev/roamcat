@@ -1,7 +1,7 @@
 /**
  * @file src/pages/options/sections/parts.js
  * 文件职责：设置页分区模板的共用零件——组、行、开关、下拉框、分段按钮与密钥显隐按钮。
- * 主要内容：group/row/switchControl/switchRow/selectControl/segmentRow/eyeToggle，统一产出
+ * 主要内容：group/row/switchControl/switchRow/selectControl/segmentRow/eyeToggle，以及连接器安装命令（installCommand / installWhere），统一产出
  *   .opt-group > .opt-group-head h2 + .opt-card > .opt-row 结构；各分区只拼内容，不再各写一套行标记。
  *   分段按钮沿用「label 包住 radio」的写法：选中态由 CSS 的 :has(input:checked) 决定，控制器只改 checked。
  * 模块边界：纯展示模板，不绑定事件（控件由 options-controller.js 按 id / name 绑定）。
@@ -13,6 +13,12 @@
  */
 import {html, nothing} from 'lit';
 import {t} from '../../../i18n-runtime.js';
+
+// 连接器安装命令因安装方式而异：源码构建的 manifest 带固定 key，连接器在仓库的 roamcat-0.0.1/connector/ 下，从仓库根目录运行；
+// 发布包没有 key，连接器就在解压出的文件夹里。两种情况的路径与「在哪里运行」必须和 README 一致。
+export const sourceBuild = () => Boolean(globalThis.chrome?.runtime?.getManifest?.()?.key);
+export const installWhere = () => t(sourceBuild() ? 'ctl.installWhereSource' : 'ctl.installWhereRelease');
+export const installCommand = id => `node ${sourceBuild() ? 'roamcat-0.0.1/' : ''}connector/install.mjs --extension-id ${id}`;
 
 export const selectArrow = html`<div class="swiss-select-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>`;
 

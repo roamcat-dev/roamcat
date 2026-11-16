@@ -18,6 +18,7 @@ import {createProviderPicker} from '@ext/ui/provider-picker.js';
 import {VIDEO_SUPPORT_ENABLED} from '@ext/activation.js';
 import {serviceCatalog, isMtKey} from '@ext/ui/options-service-catalog.js';
 import {createMtPanel} from './options-mt.js';
+import {installCommand, installWhere} from './sections/parts.js';
 
 const T=(k,v)=>globalThis.RoamCatI18n?.t(k,v)??k;
 const optionsSourceLabels = {personalized:'src.personalized',manual:'src.manual','site-user':'src.site-user',global:'src.global','site-built-in':'src.site-built-in','local-model':'src.local-model',chatgpt:'src.chatgpt',grok:'src.grok',antigravity:'src.antigravity',api:'src.api',jev:'src.jev',general:'src.general'};
@@ -85,8 +86,8 @@ function optionsProviderKind() { const kind=optionsState?.settings?.providerKind
 function optionsSubscriptionKind(){const kind=optionsProviderKind();return kind==='grok'||kind==='antigravity'?kind:'chatgpt';}
 function optionsInstallCommand(){
   const id=window.chrome?.runtime?.id||'YOUR_EXTENSION_ID';
-  // 安装器默认一次注册本机找得到 CLI 的全部订阅通道，三个通道共用同一条命令。
-  return `node connector/install.mjs --extension-id ${id}`;
+  // 安装器默认一次注册本机找得到 CLI 的全部订阅通道，三个通道共用同一条命令；路径按源码构建 / 发布包区分。
+  return installCommand(id);
 }
 function optionsLookupKey(){const key=optionsState?.settings?.lookupKey;return typeof key==='string'&&/^[A-Z]$/.test(key)?key:'D';}
 function optionsRenderLookupKey(){const key=optionsLookupKey();optionsEls.lookupKey.value=key;for(const copy of optionsLookupKeyCopies)copy.textContent=key;}
@@ -165,10 +166,10 @@ function optionsRenderSubscription(){
   }
   if(optionsEls.installCommand)optionsEls.installCommand.textContent=optionsInstallCommand();
   if(optionsEls.installPrereq)optionsEls.installPrereq.textContent=kind==='grok'
-    ?T('ctl.installGrok')
+    ?T('ctl.installGrok',{where:installWhere()})
     :kind==='antigravity'
-    ?T('ctl.installAgy')
-    :T('ctl.installCodex');
+    ?T('ctl.installAgy',{where:installWhere()})
+    :T('ctl.installCodex',{where:installWhere()});
   if(optionsEls.installNote)optionsEls.installNote.textContent=kind==='grok'
     ?T('ctl.noteGrok')
     :kind==='antigravity'

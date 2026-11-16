@@ -134,7 +134,8 @@
       if (!container) return;
       globalThis.RoamCatContentUI.renderPetSummaryError(container, {
         message: errorMsg,
-        onRetry: () => this.requestArticleSummary(),
+        // 只认真人点击（见 floating-pet.js bindEvents 的说明）。
+        onRetry: (event) => { if (event?.isTrusted) this.requestArticleSummary(); },
         onOpenSettings: () => chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' }),
       });
     },

@@ -52,7 +52,7 @@
   function containsDeep(ancestor,node){if(!ancestor||!node)return false;if(ancestor.contains(node))return true;const host=composedRootHost(node);return host?containsDeep(ancestor,host):false;}
   function composedClosest(element,selector){let current=element;while(current){if(current.nodeType===1){const hit=current.closest?.(selector);if(hit)return hit;}current=composedRootHost(current);}return null;}
   let readingPass=null;
-  function withReadingPass(fn){const previous=readingPass;readingPass||={styles:new WeakMap(),visible:new WeakMap(),ancestors:new WeakMap(),maps:new WeakMap(),scopes:new WeakMap()};try{return fn();}finally{readingPass=previous;}}
+  function withReadingPass(fn){const previous=readingPass;readingPass||={styles:new WeakMap(),visible:new WeakMap(),ancestors:new WeakMap(),clips:new WeakMap(),maps:new WeakMap(),scopes:new WeakMap()};try{return fn();}finally{readingPass=previous;}}
   function readStyle(element){if(!readingPass)return getComputedStyle(element);if(!readingPass.styles.has(element))readingPass.styles.set(element,getComputedStyle(element));return readingPass.styles.get(element);}
   function queryAllDeep(root,selector){
     if(!root?.querySelectorAll)return [];
@@ -271,22 +271,7 @@ const LIMIT_ERROR = T('c.limit');
       const blocks=nearReadingBlocks().filter(block=>containsDeep(root,block)),visible=new Map(),fresh=[];let examined=0;
       for(const block of blocks){if(!inViewport(block)||unsafe(block))continue;const mapping=textMap(block);if(!/[A-Za-z]/.test(mapping.text))continue;
         let memo=capture.blocks.get(block);if(!memo||memo.text!==mapping.text){memo={text:mapping.text,key:(await sha256(mapping.text))+':'+blockId(block)};capture.blocks.set(block,memo);}
-        let left = 0,
-          top = 0,
-          right = innerWidth,
-          bottom = innerHeight;
-        for (let parent = block; parent; parent = parent.parentElement) {
-          const css = getComputedStyle(parent),
-            rect = parent.getBoundingClientRect();
-          if (/hidden|clip|auto|scroll/.test(css.overflowX)) {
-            left = Math.max(left, rect.left);
-            right = Math.min(right, rect.right);
-          }
-          if (/hidden|clip|auto|scroll/.test(css.overflowY)) {
-            top = Math.max(top, rect.top);
-            bottom = Math.min(bottom, rect.bottom);
-          }
-        }
+        const {left, top, right, bottom} = clipOf(block);
         for (const match of mapping.text.matchAll(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g)) {
           if (++examined > 1000) break;
           const range = rangeFor(mapping, match.index, match.index + match[0].length);
@@ -364,33 +349,24 @@ const LIMIT_ERROR = T('c.limit');
       const visible=ancestorsVisible(element);readingPass?.visible.set(element,visible);return visible;
     }
   const inRect = rect => rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
+  // 元素被视口和各级滚动/裁剪容器裁出来的可见矩形。只有会裁剪的祖先才量位置；同一轮（withReadingPass）里每个祖先只算一次，
+  // 同一段、同一篇文章里的标注共用结果——逐条标注从头走一遍祖先链时，60 条标注一轮要 6–7 毫秒，而滚动时每帧都要跑。
+  function clipOf(element){
+    if(!element)return {left:0,top:0,right:innerWidth,bottom:innerHeight};
+    const cached=readingPass?.clips.get(element);if(cached)return cached;
+    const outer=clipOf(element.parentElement),style=readStyle(element),clipX=/hidden|clip|auto|scroll/.test(style.overflowX),clipY=/hidden|clip|auto|scroll/.test(style.overflowY);
+    let clip=outer;
+    if(clipX||clipY){const rect=element.getBoundingClientRect();clip={left:clipX?Math.max(outer.left,rect.left):outer.left,top:clipY?Math.max(outer.top,rect.top):outer.top,right:clipX?Math.min(outer.right,rect.right):outer.right,bottom:clipY?Math.min(outer.bottom,rect.bottom):outer.bottom};}
+    readingPass?.clips.set(element,clip);return clip;
+  }
   function visibleRange(range,block) {
     if(!isVisible(block))return false;
-    let left=0,top=0,right=innerWidth,bottom=innerHeight;
-    for(let parent=block;parent;parent=parent.parentElement){
-      const style=getComputedStyle(parent),rect=parent.getBoundingClientRect();
-      if(/hidden|clip|auto|scroll/.test(style.overflowX)){left=Math.max(left,rect.left);right=Math.min(right,rect.right);}
-      if(/hidden|clip|auto|scroll/.test(style.overflowY)){top=Math.max(top,rect.top);bottom=Math.min(bottom,rect.bottom);}
-    }
+    const {left,top,right,bottom}=clipOf(block);
+    if(right<=left||bottom<=top)return false;
     return [...range.getClientRects()].some(rect=>Math.min(rect.right,right)>Math.max(rect.left,left)&&Math.min(rect.bottom,bottom)>Math.max(rect.top,top));
   }
   const sentenceCanRun=()=>sentenceGroups.enabled&&state.enabled&&!state.paused&&!state.emergency&&state.providerConfigured&&document.visibilityState==='visible';
-  function sentenceClip(block){
-    let left=0,top=0,right=innerWidth,bottom=innerHeight;
-    for (let parent = block; parent; parent = parent.parentElement) {
-      const style = getComputedStyle(parent),
-        rect = parent.getBoundingClientRect();
-      if (/hidden|clip|auto|scroll/.test(style.overflowX)) {
-        left = Math.max(left, rect.left);
-        right = Math.min(right, rect.right);
-      }
-      if (/hidden|clip|auto|scroll/.test(style.overflowY)) {
-        top = Math.max(top, rect.top);
-        bottom = Math.min(bottom, rect.bottom);
-      }
-    }
-    return {left,top,right,bottom};
-  }
+  function sentenceClip(block){const {left,top,right,bottom}=clipOf(block);return {left,top,right,bottom};}
   function clearSentenceHighlights(){for(const name of sentenceGroups.highlights.keys())CSS.highlights.delete(name);sentenceGroups.highlights.clear();sentenceGroups.style?.remove();sentenceGroups.style=null;sentenceGroups.hits=[];}
   function sentenceRanges(mapping,start,end){
     const ranges=[];for(const part of mapping.nodes){if(part.end<=start)continue;if(part.start>=end)break;const range=document.createRange();range.setStart(part.node,Math.max(0,start-part.start));range.setEnd(part.node,Math.min(part.node.length,end-part.start));ranges.push(range);}return ranges;
@@ -1490,6 +1466,7 @@ const LIMIT_ERROR = T('c.limit');
   function trackOpportunities() {
     if (!automatic()) { state.records.forEach(record=>record.since=0); return; }
     const now=Date.now(),words=[];
+    withReadingPass(()=>{
     for (const record of state.records) {
       const key = identity(record.target);
       if (
@@ -1516,6 +1493,7 @@ const LIMIT_ERROR = T('c.limit');
         hintShown: record.stage === 'hint'
       });
     }
+    });
     if(words.length)void request('ENCOUNTER',{words}).catch(()=>{});
   }
   function usageTick() {
@@ -1540,8 +1518,8 @@ const LIMIT_ERROR = T('c.limit');
       if (validTarget(state.card.target)) positionCard(state.card);
       else closeCard();
     }
-    state.records.forEach(record => {
-      if (!visibleRange(record.range, record.block)) record.since = 0;
+    withReadingPass(() => {
+      for (const record of state.records) if (record.since && !visibleRange(record.range, record.block)) record.since = 0;
     });
     if (event && event.type !== 'scroll') {
       scheduleSentenceRender();

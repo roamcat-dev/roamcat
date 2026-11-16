@@ -215,6 +215,7 @@ async function runHistoryModel(kind, payload, instructions, schema) {
   const command = { type: kind === 'summary' ? 'HISTORY_SUMMARY' : 'PERSONALIZATION_ANALYZE' };
   return diagnostics.run(command, { id: chrome.runtime.id }, async () => {
     const { settings } = await load(false);
+    await awaitAutoConnect(settings);
     if (!configured(settings))
       throw Object.assign(new Error(M('请先配置可用服务。', 'Please configure an available service first.')), {
         code: 'NOT_READY'
@@ -246,6 +247,9 @@ let emergencyWrites=Promise.resolve();
 function changeEmergency(operation){const work=emergencyWrites.then(operation);emergencyWrites=work.catch(()=>{});return work;}
 const POPUP_INTENT_KEY='bilingualPopupIntent';
 const readerOriginalKey=tabId=>'readerOriginalOnce:'+tabId;
+// 阅读器接管 PDF 时记下「这个标签页刚接管了哪份 PDF」；原始 PDF 抢先提交（进了历史记录）时再标上 committed。
+const readerTakeoverKey=tabId=>'readerTakeover:'+tabId;
+const readerUrlFor=source=>chrome.runtime.getURL('ui/reader.html')+'?src='+encodeURIComponent(source);
 // 快捷键、右键菜单在某个标签页上失败时记下原因：图标挂红色「!」，弹窗打开时取走原因展示给读者。
 const tabErrorKey=tabId=>'tabError:'+tabId;
 let popupIntentWrites=Promise.resolve();
@@ -319,6 +323,8 @@ function trackModelUsage(entry){
 async function usageStatsSnapshot(){await usageStatsWrites.catch(()=>{});const stored=await chrome.storage.local.get(USAGE_STATS_KEY);return summarizeUsage(stored[USAGE_STATS_KEY]);}
 function configured(settings) { const provider=activeApiProvider(settings);return isSubscriptionKind(settings.providerKind) ? subscriptionStatus(nativeKind(settings)).authenticated : apiServiceReady(provider); }
 function serviceNotReady() { return Object.assign(new Error(M('辅助服务尚未连接。本页其它功能仍可用，请到设置里连接服务。','The assist service is not connected. Other features still work; connect a service in Settings.')), {code:'NOT_READY'}); }
+// 本次 Service Worker 生命周期里发给页面的最近一次「订阅是否就绪」（publicState 记下）：重连后与它不一致才需要再广播。
+const announcedConfigured=new Map();
 function handleSubscriptionStatus(kind,subscription) {
   if(subscription.connected)void diagnostics.connected();
   // 只有确实未登录/登录失效才取消“已关联”；网络抖动、探测超时（authFailed=false）或连接器暂时没起来时保留，之后照常自动重连。
@@ -326,14 +332,23 @@ function handleSubscriptionStatus(kind,subscription) {
   const linkKey=kind==='grok'?'grokSubscriptionLinked':kind==='antigravity'?'antigravitySubscriptionLinked':'subscriptionLinked';
   if(linked!==null)void chrome.storage.local.set({[linkKey]:linked});
   void chrome.runtime.sendMessage({type:'SUBSCRIPTION_UPDATED',kind,subscription}).catch(() => {});
-  void chrome.storage.local.get('settings').then(async({settings}) => {
-    if (nativeKind(settings)!==kind) return;
-    await clearProviderState();
-    invalidateClassification();
-    await broadcast();
-  });
+  void applySubscriptionStatus(kind,subscription).catch(error => console.error('更新自动开启策略失败',error));
+}
+// 走本机常驻服务时后台空闲约 30 秒就被回收，每次唤醒后的重连都会发出一次「未连接 → 已登录」。这不是账户变化：
+// 缓存、整页翻译授权都按服务与模型取键，重连后照样有效，清掉它们会让页面上已有的译文被撤掉、释义重新请求一遍。
+// 所以只有登录状态真正翻转（浏览器会话内记着上一次的值）才清缓存、重新对账；重连只在页面拿到过相反结论时补一次广播。
+async function applySubscriptionStatus(kind,subscription) {
   // 只有连着的时候登录状态才可信：刷新连接会先拆掉旧端口（发出一次「未连接」），再重连，别把这一断一连当成登录状态变化。
-  if(subscription.connected)void subscriptionAuthChanged(kind,Boolean(subscription.authenticated)).then(changed => changed && reconcileAutomation()).catch(error => console.error('更新自动开启策略失败',error));
+  const flipped=subscription.connected?await subscriptionAuthChanged(kind,Boolean(subscription.authenticated)):false;
+  const {settings}=await chrome.storage.local.get('settings');
+  const active=isSubscriptionKind(settings?.providerKind)&&nativeKind(settings)===kind;
+  if(flipped){
+    if(active)await clearProviderState();
+    if(active||settings?.domainDetection?.mode===kind)invalidateClassification();
+  }
+  const ready=subscriptionStatus(kind).authenticated;
+  if(active&&(flipped||(announcedConfigured.has(kind)&&announcedConfigured.get(kind)!==ready)))await broadcast();
+  if(flipped)await reconcileAutomation();
 }
 onSubscriptionStatus(subscription => handleSubscriptionStatus('chatgpt',subscription),'chatgpt');
 onSubscriptionStatus(subscription => handleSubscriptionStatus('grok',subscription),'grok');
@@ -341,8 +356,10 @@ onSubscriptionStatus(subscription => handleSubscriptionStatus('antigravity',subs
 // 自动连接本机连接器必须节流：MV3 Service Worker 约 30 秒空闲即被回收，每次唤醒都会重新运行模块代码。
 // 若每次 load()（伴读猫每页都会发 STATE_GET）都同步拉起连接器，就会不断 spawn node 与 codex/agy/grok 进程：
 // 既拖慢每一次消息响应（连接器无响应时 load() 要等满 45 秒超时），也可能耗尽进程与连接资源。
-// 规则：已连上就不再自动连接；连上后同一浏览器会话内每个后端最多每 10 分钟确认一次。
-// 失败（含网络抖动、探测超时）不再整场停掉，而是退避重试：1、2、4、8 分钟，封顶 10 分钟；
+// 规则：已连上就不再自动连接（同一 Service Worker 生命周期里端口还在，状态就是已登录）。
+// 上次连接成功、这次唤醒还没连上（后台被回收过，常驻服务的 WebSocket 留不住后台），立即重连，不设间隔：
+// 否则回收后的 10 分钟里订阅一直显示「未连接」，查词与翻译都报服务未就绪。
+// 失败（含网络抖动、探测超时）才节流，退避重试：1、2、4、8 分钟，封顶 10 分钟；
 // 用户在「模型服务」点击「刷新账户与模型」（refreshSubscription）不受此限制。
 const AUTO_CONNECT_INTERVAL_MS = 10 * 60000;
 const AUTO_CONNECT_RETRY_MS = 60000;
@@ -356,8 +373,8 @@ function autoConnectSubscription(kind) {
       const key = 'autoConnect:' + kind;
       const stored = (await chrome.storage.session.get(key))[key] || {};
       const failures = Number.isInteger(stored.failures) ? stored.failures : 0;
-      const wait = failures ? Math.min(AUTO_CONNECT_INTERVAL_MS, AUTO_CONNECT_RETRY_MS * 2 ** (failures - 1)) : AUTO_CONNECT_INTERVAL_MS;
-      if (Number.isFinite(stored.at) && Date.now() - stored.at < wait) return;
+      const wait = failures ? Math.min(AUTO_CONNECT_INTERVAL_MS, AUTO_CONNECT_RETRY_MS * 2 ** (failures - 1)) : 0;
+      if (wait && Number.isFinite(stored.at) && Date.now() - stored.at < wait) return;
       await chrome.storage.session.set({ [key]: { at: Date.now(), failures } });
       // probe：没有端口时新建连接，有端口时只重问一次状态；ensure 在同一 Service Worker 生命周期里只会尝试一次。
       const status = await probeSubscription(kind).catch(() => null);
@@ -368,10 +385,20 @@ function autoConnectSubscription(kind) {
   return run;
 }
 const AUTO_CONNECT_WAIT_MS = 20000;
-async function awaitAutoConnect(settings) {
+// 页面每次加载都会问 STATE_GET：只短等一下，常驻服务几毫秒就连上；连接器起得慢时先照实回答，连上后再广播。
+const AUTO_CONNECT_STATE_WAIT_MS = 1500;
+async function awaitSubscriptionConnect(kind, waitMs = AUTO_CONNECT_WAIT_MS) {
+  if (subscriptionStatus(kind).authenticated) return;
+  const run = autoConnectRuns.get(kind);
+  if (!run) return;
+  let timer;
+  await Promise.race([run, new Promise(resolve => { timer = setTimeout(resolve, waitMs); })]);
+  clearTimeout(timer);
+}
+// load() 发起的自动连接还在路上时先等它：后台刚被唤醒那一刻订阅状态是空的，直接判「未连接」会让请求白白失败。
+async function awaitAutoConnect(settings, waitMs) {
   if (!isSubscriptionKind(settings.providerKind) || configured(settings)) return;
-  const run = autoConnectRuns.get(nativeKind(settings));
-  if (run) await Promise.race([run, new Promise(resolve => setTimeout(resolve, AUTO_CONNECT_WAIT_MS))]);
+  await awaitSubscriptionConnect(nativeKind(settings), waitMs);
 }
 async function load(includeWords=true) {
   await dataReady;await readingHistory.ready;assertDataAvailable();
@@ -395,6 +422,7 @@ async function load(includeWords=true) {
 function canRemember(state) { return schemaReady && !futureSchema && !cleanupPending && state.settings.rememberSupport; }
 function publicState(state,trusted) {
   const providerConfigured = configured(state.settings),source=state.settings;
+  if(isSubscriptionKind(source.providerKind))announcedConfigured.set(nativeKind(source),providerConfigured);
   const settings = trusted
     ? source
     : {
@@ -618,6 +646,7 @@ async function classifyText(settings,source,title,{force = false,guard = async (
   await guard();
   try {
     if (isSubscriptionKind(detection.mode)) {
+      await awaitSubscriptionConnect(detection.mode);
       if (!subscriptionStatus(detection.mode).authenticated)
         throw new Error(
           detection.mode === 'grok'
@@ -697,7 +726,7 @@ async function resolvePageDomain(message,sender) {
   const sharedGuard=async()=>{if(generation!==classificationGeneration||providerVersion!==providerGeneration)throw staleWork();};
   const guard = async () => {
     await sharedGuard();
-    const currentSource=await readingSource(sender),current=await tabPage(sender.tab.id),latest=await load();
+    const currentSource=await readingSource(sender),current=await tabPage(sender.tab.id),latest=await load(false);
     if(!currentSource.active||await tabPaused(sender.tab.id)||(latest.settings.assistanceMode==='on-demand'&&message.explicit!==true))throw staleWork();
     if(currentSource.sourceHash!==await hashValue(page.key)||current.key!==page.key||await pageDomain(sender.tab.id,page.key)!==manual)throw new Error(M('页面或手动领域已变化，请重试。','The page or manual domain changed; please retry.'));
   };
@@ -1032,7 +1061,7 @@ async function sessionMap(key,ttl,limit){
 }
 async function registerOffers(source, targets, expectedProvider, expectedSupport) {
   const work = writes.then(async () => {
-    const current = await load();
+    const current = await load(false);
     if (futureSchema || expectedProvider !== providerGeneration || expectedSupport !== current.supportDataGeneration)
       return;
     const key = offeredKey(source.tabId),
@@ -1170,7 +1199,7 @@ async function supportBatch(message,sender){
     owners = new Map(),
     tasks = [];
   const guard = async () => {
-    const [latest, page] = await Promise.all([load(), readingSource(sender)]);
+    const [latest, page] = await Promise.all([load(false), readingSource(sender)]);
     if (
       requestPolicy !== JSON.stringify(readingHistory.policy()) ||
       generation !== providerGeneration ||
@@ -1223,6 +1252,7 @@ async function supportBatch(message,sender){
   const keys=await Promise.all(tasks.map(item=>hashValue(JSON.stringify([SUPPORT_POLICY_VERSION,requestPolicy,state.settings.providerKind,service,source.sourceHash,article,cachePayload(item)])))),decisions=new Map(),missing=[];
   for(let i=0;i<tasks.length;i++){const cached=supportCache.get(keys[i]);if(cached&&cached.policy===SUPPORT_POLICY_VERSION&&Date.now()-cached.at<7*86400000)decisions.set(tasks[i].id,cached.decision);else missing.push({item:tasks[i],key:keys[i]});}
   if(missing.length){
+    await awaitAutoConnect(state.settings);
     if(!configured(state.settings))throw serviceNotReady();
     const fresh=[],claimed=new Set();
     for(const entry of missing)if(!supportInFlight.has(entry.key)&&!claimed.has(entry.key)){claimed.add(entry.key);fresh.push(entry);}
@@ -1276,7 +1306,7 @@ async function supportBatch(message,sender){
           });
           await requireLiveConsumer(backgroundGuards.get(operation));
           for(let i=0;i<group.length;i++){const {target,meaning,sentenceTranslation}=response.items[i];all.set(group[i].key,{target,meaning,sentenceTranslation});}}
-        const checked=normalizeSupportResult({items:fresh.map(({item,key})=>({id:item.id,...all.get(key)}))},fresh.map(({item})=>item),article),now=Date.now(),latestState=await load();
+        const checked=normalizeSupportResult({items:fresh.map(({item,key})=>({id:item.id,...all.get(key)}))},fresh.map(({item})=>item),article),now=Date.now(),latestState=await load(false);
         if (
           generation === providerGeneration &&
           supportGeneration === latestState.supportDataGeneration &&
@@ -1422,10 +1452,10 @@ async function setSentenceGroupsLineStyle(message,_sender,trusted){
 async function sentenceGroupsBatch(message,sender){
   const source=await readingSource(sender);if(!source.active||await tabPaused(source.tabId))throw new Error(M('网页当前未活动，暂停阅读解构。','The page is inactive; deconstruction is paused.'));
   const modeKey=sentenceModeKey(source.tabId),mode=(await chrome.storage.session.get(modeKey))[modeKey];if(!mode?.enabled||mode.page!==source.sourceHash)throw new Error(M('当前页面未启用阅读解构模式。','Deconstruction is not enabled on this page.'));
-  const items=normalizeSentenceGroupItems(message.items),state=await load(),generation=providerGeneration,modeGeneration=mode.generation,service=state.settings.providerKind==='api'?apiProviderForTask(state.settings,'groups'):state.settings.subscriptionModel;
+  const items=normalizeSentenceGroupItems(message.items),state=await load(false),generation=providerGeneration,modeGeneration=mode.generation,service=state.settings.providerKind==='api'?apiProviderForTask(state.settings,'groups'):state.settings.subscriptionModel;
   const guard = async () => {
     const [latest, current, currentMode] = await Promise.all([
-      load(),
+      load(false),
       readingSource(sender),
       chrome.storage.session.get(modeKey).then(value => value[modeKey])
     ]);
@@ -1441,6 +1471,7 @@ async function sentenceGroupsBatch(message,sender){
     )
       throw staleWork();
   };
+  await awaitAutoConnect(state.settings);
   if(!configured(state.settings))throw serviceNotReady();if(state.settings.providerKind==='api')await requireApiPermission(service);
   await sentenceGroupCacheReady;
   const serviceKey=await hashValue(JSON.stringify([state.settings.providerKind,service])),keys=await Promise.all(items.map(item=>hashValue(JSON.stringify([SENTENCE_GROUPS_POLICY_VERSION,serviceKey,item.sentence])))),groupsByKey=new Map(),newItems=[],claimed=new Set(),now=Date.now();
@@ -1646,12 +1677,13 @@ async function recordPreparedIntent(command, source, snapshot) {
   }, false).catch(() => null);
 }
 async function preparedAssist(message,sender){
-  const source=await readingSource(sender),snapshot=await load(),generation=providerGeneration,article=normalizePreparationContext(message.article);
+  const source=await readingSource(sender),snapshot=await load(false),generation=providerGeneration,article=normalizePreparationContext(message.article);
   await supportCacheReady;
   const {type:_type,article:_article,...payload}=message,command=normalizeAssistanceCommand(payload);
   if(command.kind==='passage')throw new Error(M('预备帮助仅支持单词或短语。','Prepared help only supports words or phrases.'));
   if(command.detail==='brief')await recordPreparedIntent(command,source,snapshot);
-  let latest=await load();
+  // 这一次只核对代际与设置；需要词库的分支（记得住且有预备结果）在写入后重新读一遍。
+  let latest=await load(false);
   if(generation!==providerGeneration||snapshot.supportDataGeneration!==latest.supportDataGeneration)throw new Error(M('本机支持设置已变化，请重新求助。','Local support settings changed; please ask again.'));
   const rich=command.bypassCache?null:preparedDecision(command.text,command.domain,command.context,article);
   if(!rich)return assist({...payload,articleKey:article.key},sender,{recordIntent:false});
@@ -1707,7 +1739,7 @@ async function emergencyBegin(message, sender, trusted){
   if(!sameArticleUrl(tab.url,url))throw new Error(M('页面已变化，请重新确认。','The page changed; please confirm again.'));
   injectedEmergencyPages.set(tabId, tab.url);
   if(!['http:','https:'].includes(new URL(tab.url).protocol))throw new Error(M('此网页不支持紧急翻译。','This page does not support emergency translation.'));
-  return changeEmergency(async()=>{const state=await load(),generation=providerGeneration,token=crypto.randomUUID()+crypto.randomUUID(),provider=await emergencyProvider(state.settings),current=await chrome.tabs.get(tabId);
+  return changeEmergency(async()=>{const state=await load(false),generation=providerGeneration,token=crypto.randomUUID()+crypto.randomUUID(),provider=await emergencyProvider(state.settings),current=await chrome.tabs.get(tabId);
     if(!sameArticleUrl(current.url,url)||generation!==providerGeneration)throw new Error(M('页面或服务已变化，请重新确认。','The page or service changed; please confirm again.'));
     await chrome.storage.session.set({[emergencyKey(tabId)]:{token,url,generation:state.supportDataGeneration,provider,cancelledThrough:0}});
     return {token};});
@@ -1879,10 +1911,10 @@ async function emergencyTranslate(message,sender) {
   if(!armed||message.token!==armed.token||!sameArticleUrl(armed.url,source.url))throw new Error(M('紧急翻译授权无效或已过期。','Emergency-translation authorization is invalid or expired.'));
   if(!Number.isSafeInteger(message.requestSeq)||message.requestSeq<=0)throw new Error(M('无效的翻译请求序号。','Invalid translation request number.'));
   if(emergencyRequestCancelled(armed,message.requestSeq))throw staleWork();
-  const items=normalizePageTranslationItems(message.items),state=await load();
+  const items=normalizePageTranslationItems(message.items),state=await load(false);
   if(armed.generation!==state.supportDataGeneration||armed.provider!==await emergencyProvider(state.settings))throw new Error(M('翻译设置已改变，请重新开始。','Translation settings changed; please start over.'));
   const guard = async () => {
-    const [latest, page] = await Promise.all([load(), readingSource(sender)]),
+    const [latest, page] = await Promise.all([load(false), readingSource(sender)]),
       current = await emergencySession(source.tabId);
     if (
       !current ||
@@ -1938,7 +1970,7 @@ async function emergencyCancelRequest(message,sender){
   if(!specific&&(!Number.isSafeInteger(message.through)||message.through<=0))throw new Error(M('无效的翻译请求序号。','Invalid translation request number.'));
   const source=await readingSource(sender);
   const result=await changeEmergency(async()=>{
-    const [page,state]=await Promise.all([readingSource(sender),load()]),provider=await emergencyProvider(state.settings),key=emergencyKey(source.tabId),armed=(await chrome.storage.session.get(key))[key];
+    const [page,state]=await Promise.all([readingSource(sender),load(false)]),provider=await emergencyProvider(state.settings),key=emergencyKey(source.tabId),armed=(await chrome.storage.session.get(key))[key];
     if(!armed||message.token!==armed.token||!sameArticleUrl(armed.url,source.url)||!sameArticleUrl(page.url,source.url))throw new Error(M('紧急翻译授权无效或已过期。','Emergency-translation authorization is invalid or expired.'));
     if(armed.generation!==state.supportDataGeneration||armed.provider!==provider)throw new Error(M('翻译设置已改变，请重新开始。','Translation settings changed; please start over.'));
     if(specific){const cancelledSeqs=[...new Set([...(armed.cancelledSeqs||[]),message.seq])].slice(-32);await chrome.storage.session.set({[key]:{...armed,cancelledSeqs}});return {cancelledSeqs};}
@@ -1951,7 +1983,7 @@ async function emergencyCancelRequest(message,sender){
 }
 const audioRequests = new Set(); // 只约束存活中的请求，SW 重启后不会复用音频。
 async function videoAudioTranscribe(message, sender) {
-  const page = await readingSource(sender), state = await load(), generation = providerGeneration;
+  const page = await readingSource(sender), state = await load(false), generation = providerGeneration;
   const url = new URL(page.url);
   if (!VIDEO_SUPPORT_ENABLED || !['www.youtube.com', 'm.youtube.com', 'youtube.com'].includes(url.hostname) || url.protocol !== 'https:'
     || !state.settings.automation.videoSites || !page.active || await tabPaused(page.tabId)) throw new Error(M('请在活动的 YouTube 页面开启视频功能。', 'Enable video features on the active YouTube page.'));
@@ -2003,10 +2035,10 @@ async function videoCueTranslate(message, sender) {
   // 不带 context 的旧请求仍走选段翻译。两条都不写阅读记录：字幕是跟着播放走的临时文本。
   const withContext = Array.isArray(message.items) && message.items.some(item => item && typeof item === 'object' && 'context' in item);
   const items = withContext ? normalizePageTranslationItems(message.items) : normalizeEmergencyItems(message.items);
-  const state = await load();
+  const state = await load(false);
   const generation = providerGeneration;
   const guard = async () => {
-    const [latest, page] = await Promise.all([load(), readingSource(sender)]);
+    const [latest, page] = await Promise.all([load(false), readingSource(sender)]);
     if (generation !== providerGeneration || state.supportDataGeneration !== latest.supportDataGeneration || page.sourceHash !== source.sourceHash || !page.active || await tabPaused(source.tabId)) throw staleWork();
   };
   const progress=completedTranslationProgress(message,sender,'SS_VIDEO_TRANSLATION_PROGRESS',guard);
@@ -2040,7 +2072,7 @@ async function liveChatTranslate(message, sender) {
   if (!source.active || await tabPaused(source.tabId)) throw new Error(M('请在当前页面打开直播聊天翻译。','Turn on live-chat translation on the current page.'));
   const items = normalizePageTranslationItems(message.items);
   const requestId = typeof message.requestId === 'string' ? message.requestId.slice(0, 80) : '';
-  const state = await load();
+  const state = await load(false);
   if (state.settings.video.liveChat !== true) throw new Error(M('直播聊天翻译已关闭。','Live-chat translation is off.'));
   // 机器翻译单独限速（每分钟 30 批），省着用各家的免费额度；API 通道每分钟 12 批，订阅通道不限。
   const liveChatEngine = mtEngineFor(state.settings, 'liveChat');
@@ -2051,7 +2083,7 @@ async function liveChatTranslate(message, sender) {
   }
   const generation = providerGeneration;
   const guard = async () => {
-    const [latest, page] = await Promise.all([load(), readingSource(sender)]);
+    const [latest, page] = await Promise.all([load(false), readingSource(sender)]);
     if (generation !== providerGeneration || state.supportDataGeneration !== latest.supportDataGeneration || latest.settings.video.liveChat !== true || !page.active || await tabPaused(source.tabId)) throw staleWork();
   };
   let open = true, sent = '';
@@ -2082,8 +2114,8 @@ async function passageTranslate(message,sender) {
   const source=await readingSource(sender);
   if(!source.active||await tabPaused(source.tabId))throw new Error(M('请在当前活动页面选择需要翻译的段落。','Please select the passages to translate on the current active page.'));
   const {requestId}=parsePassageRequestRef(message);
-  const items=normalizeEmergencyItems(message.items),state=await load(),generation=providerGeneration;
-  const current=async()=>{const[latest,page]=await Promise.all([load(),readingSource(sender)]);return generation===providerGeneration&&state.supportDataGeneration===latest.supportDataGeneration&&page.sourceHash===source.sourceHash&&page.active&&!await tabPaused(source.tabId);};
+  const items=normalizeEmergencyItems(message.items),state=await load(false),generation=providerGeneration;
+  const current=async()=>{const[latest,page]=await Promise.all([load(false),readingSource(sender)]);return generation===providerGeneration&&state.supportDataGeneration===latest.supportDataGeneration&&page.sourceHash===source.sourceHash&&page.active&&!await tabPaused(source.tabId);};
   const guard=async()=>{if(!await current())throw staleWork();};
   let open=true,pending=null,previous=null,delivering=false,timer=0;
   const deliver=async()=>{
@@ -2120,8 +2152,8 @@ async function passageTranslate(message,sender) {
 // 阅读器页（PDF/EPUB）翻译：扩展页天然可信，无网页身份，沿用 passage 作用域与代际防线。
 async function readerTranslate(message,sender,trusted){
   if(!trusted)throw new Error(M('此操作不能从网页执行。','This action cannot be performed from a web page.'));
-  const items=normalizeEmergencyItems(message.items),state=await load(),generation=providerGeneration;
-  const guard=async()=>{const latest=await load();if(generation!==providerGeneration||state.supportDataGeneration!==latest.supportDataGeneration)throw staleWork();};
+  const items=normalizeEmergencyItems(message.items),state=await load(false),generation=providerGeneration;
+  const guard=async()=>{const latest=await load(false);if(generation!==providerGeneration||state.supportDataGeneration!==latest.supportDataGeneration)throw staleWork();};
   const progress=completedTranslationProgress(message,sender,'SS_READER_TRANSLATION_PROGRESS',guard,true);
   try{return await translateItems(items,state.settings,diagnostics.trace(message),{scope:'passage',scene:'reader',onItemProgress:progress.push,origin:new URL(sender.url).origin,guard});}
   finally{progress.close();}
@@ -2141,6 +2173,7 @@ async function pageSummary(message, sender) {
   if (url && url !== source.url) throw staleWork();
   const trace = diagnostics.trace(message);
   const state = await load(false);
+  await awaitAutoConnect(state.settings);
   if (!configured(state.settings)) throw serviceNotReady();
   const guard = async () => {
     const [current, latest] = await Promise.all([readingSource(sender), load(false)]);
@@ -2273,7 +2306,7 @@ async function assistPreview(message,sender) {
 async function assist(message, sender, { recordIntent = true } = {}) {
   const { articleKey, command } = parseAssistRequest(message),
     source = await readingSource(sender),
-    state = await load(),
+    state = await load(false),
     providerVersion = providerGeneration,
     requestPolicy = JSON.stringify(readingHistory.policy()),
     key = pendingKey(source.tabId),
@@ -2330,6 +2363,7 @@ async function assist(message, sender, { recordIntent = true } = {}) {
         let result,
           support = null,
           sourceName = 'provider';
+        await awaitAutoConnect(state.settings);
         if (!configured(state.settings)) {
           const reference =
             command.kind !== 'passage' ? localReferenceFor(command.text, command.domain, state.settings) : null;
@@ -2404,7 +2438,7 @@ async function assist(message, sender, { recordIntent = true } = {}) {
             const deliverProgress = async progress => {
               if (!flight.open) return;
               const [currentState, currentPending, currentSource] = await Promise.all([
-                load(),
+                load(false),
                 sessionMap(key, 5 * 60000, 128),
                 readingSource(sender).catch(() => null)
               ]);
@@ -2681,7 +2715,7 @@ async function encounterOffered(message, sender) {
   if (!Array.isArray(message.words) || message.words.length > 50)
     throw new Error(M('无效的阅读信号。', 'Invalid reading signal.'));
   const source = await readingSource(sender),
-    state = await load();
+    state = await load(false);
   if (
     !source.active ||
     (await tabPaused(source.tabId)) ||
@@ -3362,10 +3396,14 @@ const messageHandlers = [
   },
   {
     type: 'STATE_GET',
-    handle: async (message, { sender, trusted }) => ({
-      ...publicState(await load(false), trusted),
-      emergencyActive: Number.isInteger(sender.tab?.id) && Boolean(await emergencySession(sender.tab.id))
-    })
+    handle: async (message, { sender, trusted }) => {
+      const state = await load(false);
+      await awaitAutoConnect(state.settings, AUTO_CONNECT_STATE_WAIT_MS);
+      return {
+        ...publicState(state, trusted),
+        emergencyActive: Number.isInteger(sender.tab?.id) && Boolean(await emergencySession(sender.tab.id))
+      };
+    }
   },
   {
     type: 'SUBSCRIPTION_STATUS',
@@ -3542,6 +3580,8 @@ const messageHandlers = [
       if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
         throw new Error(M('文档地址必须是 HTTP 或 HTTPS 地址，且不能包含账号信息。','The document URL must use HTTP or HTTPS and contain no account credentials.'));
       const key = readerOriginalKey(sender.tab.id);
+      // 接下来的历史记录是「阅读器 → 原始 PDF」，之前记的接管状态不再适用。
+      await chrome.storage.session.remove(readerTakeoverKey(sender.tab.id));
       await chrome.storage.session.set({[key]:{url:url.href, at:Date.now()}});
       try { await chrome.tabs.update(sender.tab.id, {url:url.href}); }
       catch (error) { await chrome.storage.session.remove(key); throw error; }
@@ -3559,7 +3599,8 @@ const messageHandlers = [
   {
     type: 'PROVIDER_TEST',
     handle: async (message, { sender, trusted }) => {
-      const state = await load();
+      const state = await load(false);
+      await awaitAutoConnect(state.settings);
       if (!configured(state.settings)) throw new Error(M('请先连接服务。', 'Please connect a service first.'));
       const request = {
         text: 'index',
@@ -3752,21 +3793,40 @@ chrome.webNavigation.onBeforeNavigate.addListener(details => {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
     if (!/\.pdf$/iu.test(url.pathname)) return;
     void (async () => {
-      const key = readerOriginalKey(details.tabId);
-      const [data, session] = await Promise.all([chrome.storage.local.get('settings'), chrome.storage.session.get(key)]);
+      const key = readerOriginalKey(details.tabId), takeoverKey = readerTakeoverKey(details.tabId);
+      const [data, session, tab] = await Promise.all([chrome.storage.local.get('settings'), chrome.storage.session.get([key, takeoverKey]), chrome.tabs.get(details.tabId).catch(() => null)]);
       const bypass = session[key], age = Date.now() - bypass?.at;
       if (bypass) await chrome.storage.session.remove(key);
       // 读者主动返回原站时只放行这次、这个标签页、这个地址，不能形成永久的接管例外。
       if (bypass?.url === url.href && age >= 0 && age < 30000) return;
       if (normalizeSettings(data.settings).pdfReader === false) return;
-      await chrome.tabs.update(details.tabId, {url: chrome.runtime.getURL('ui/reader.html') + '?src=' + encodeURIComponent(details.url)});
+      const reader = readerUrlFor(details.url), takeover = session[takeoverKey];
+      // 后台被回收时接管得晚，原始 PDF 会先进历史记录（上一页 → PDF → 阅读器）。读者在阅读器里按「后退」落到的就是
+      // 那条 PDF 记录：再接管一次会把人送回阅读器，怎么退都退不出去。这时替读者再退一步，回到点链接之前的页面；
+      // 前面没有别的页面（链接开在新标签页）就不接管，让原始 PDF 打开。
+      if (takeover?.committed && takeover.url === url.href && tab?.url === reader) {
+        await chrome.storage.session.remove(takeoverKey);
+        await chrome.tabs.goBack(details.tabId).catch(() => {});
+        return;
+      }
+      await chrome.storage.session.set({[takeoverKey]: {url: url.href, at: Date.now(), committed: false}});
+      await chrome.tabs.update(details.tabId, {url: reader});
     })().catch(() => {});
   } catch {}
+});
+// 接管期间原始 PDF 仍然提交了：历史记录里阅读器前面多了一条 PDF，记下来供「后退」时识别。
+chrome.webNavigation.onCommitted.addListener(details => {
+  if (details.frameId !== 0 || !/\.pdf(?:[?#]|$)/iu.test(details.url || '')) return;
+  void (async () => {
+    const key = readerTakeoverKey(details.tabId), takeover = (await chrome.storage.session.get(key))[key];
+    if (!takeover || takeover.committed || takeover.url !== details.url || Date.now() - takeover.at > 30000) return;
+    await chrome.storage.session.set({[key]: {...takeover, committed: true}});
+  })().catch(() => {});
 });
 chrome.tabs.onRemoved.addListener(tabId => {
   void pruneBackgroundQueue();
   void clearPopupIntent(tabId);
-  void forgetEmergency(tabId);injectedEmergencyPages.delete(tabId);sentenceModeGeneration.delete(tabId);void chrome.storage.session.remove([sentenceModeKey(tabId),readingIntentKey(tabId),readerOriginalKey(tabId),tabErrorKey(tabId)]);
+  void forgetEmergency(tabId);injectedEmergencyPages.delete(tabId);sentenceModeGeneration.delete(tabId);void chrome.storage.session.remove([sentenceModeKey(tabId),readingIntentKey(tabId),readerOriginalKey(tabId),readerTakeoverKey(tabId),tabErrorKey(tabId)]);
   tabActivationGeneration.delete(tabId);
   tabSeenArticle.delete(tabId);
   liveChatRate.forget(tabId);
