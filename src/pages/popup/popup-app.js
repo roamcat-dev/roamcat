@@ -70,6 +70,12 @@ class RoamcatPopup extends LitElement {
     void request('STATE_GET').then(state => { this.#state = state; this.requestUpdate(); }).catch(() => {});
   };
 
+  // 订阅在弹窗打开之后才连上（后台刚被唤醒）时，后台会发 SUBSCRIPTION_UPDATED：重新取一次状态，别停在「服务未就绪」。
+  #onRuntimeMessage = message => {
+    if (message?.type !== 'SUBSCRIPTION_UPDATED') return;
+    void request('STATE_GET').then(state => { this.#state = state; this.requestUpdate(); }).catch(() => {});
+  };
+
   get #supported() { return Boolean(this.#tab?.id && /^https?:\/\//iu.test(this.#tab.url || '')); }
   get #origin() { try { return this.#supported ? new URL(this.#tab.url).origin : ''; } catch { return ''; } }
   get #hostname() { try { return this.#supported ? new URL(this.#tab.url).hostname : t('pop.thisTab'); } catch { return t('pop.thisTab'); } }
@@ -99,6 +105,7 @@ class RoamcatPopup extends LitElement {
     document.title = t('pop.brandTitle');
     this.#offLang = onUiLangChange(() => { document.title = t('pop.brandTitle'); this.requestUpdate(); });
     chrome.storage.onChanged.addListener(this.#onStorageChanged);
+    chrome.runtime.onMessage?.addListener?.(this.#onRuntimeMessage);
     document.addEventListener('pointerdown', this.#onMenuDismiss);
     document.addEventListener('keydown', this.#onMenuDismiss);
     void this.#init().then(() => { this.#watchTimer = setTimeout(() => void this.#watchPage(), 1000); });
@@ -106,6 +113,7 @@ class RoamcatPopup extends LitElement {
 
   disconnectedCallback() {
     chrome.storage.onChanged.removeListener?.(this.#onStorageChanged);
+    chrome.runtime.onMessage?.removeListener?.(this.#onRuntimeMessage);
     this.#offLang?.();
     document.removeEventListener('pointerdown', this.#onMenuDismiss);
     document.removeEventListener('keydown', this.#onMenuDismiss);

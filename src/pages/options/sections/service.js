@@ -13,7 +13,7 @@
  */
 import {html} from 'lit';
 import {t} from '../../../i18n-runtime.js';
-import {eyeToggle} from './parts.js';
+import {eyeToggle, installWhere} from './parts.js';
 
 export const serviceSection = html`
 <section id="service" class="settings-section" aria-labelledby="service-heading" hidden="">
@@ -107,7 +107,7 @@ export const serviceSection = html`
 <div class="setup-step-body">
 <b>${t('sec.svc.stepInstall')}</b>
 <div class="setup-step-detail">
-<p id="install-prereq">${t('sec.svc.prereq')}</p>
+<p id="install-prereq">${t('sec.svc.prereq',{where:installWhere()})}</p>
 <div class="copy-command">
 <code id="install-command">
 </code>
