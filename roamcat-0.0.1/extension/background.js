@@ -501,6 +501,7 @@ function freshWord(term,scope,kind){return {id:wordId(term,scope),term,domain:sc
 function analysisSettings(state){return {...state.settings,annotationPolicy:readingHistory.policy()?.annotation};}
 function withoutKnownTerms(result,words){const context=createLexiconContext(words);return {...result,terms:(result.terms||[]).filter(term=>!isKnownTerm(term.term||term.text||term.occurrences?.[0]?.text,words,context))};}
 function suggestedStage(word,senseKey,state){if(word)return publicSupport(word,senseKey,state);const depth=readingHistory.policy()?.annotation?.depth;return {wordId:null,senseKey,stage:['hint','mark'].includes(depth)?depth:'hint',locked:false,revision:0};}
+const storageUsed = new WeakMap();
 async function saveRecord(state, updated) {
   const index = state.words.findIndex(word => word.id === updated.id);
   if (index < 0 && state.words.length >= 5000) {
@@ -509,13 +510,19 @@ async function saveRecord(state, updated) {
   }
   const bytes = value => new TextEncoder().encode(JSON.stringify(value)).length;
   const growth = bytes(updated) - (index < 0 ? 0 : bytes(state.words[index]));
-  const used = chrome.storage.local.getBytesInUse
-    ? await chrome.storage.local.getBytesInUse(null)
-    : bytes(await chrome.storage.local.get(null));
+  // 同一次写入事务（一次 mutate 的 state）里只向浏览器问一次已用空间，之后按每条记录的增量累加：
+  // 一批 50 个阅读信号原先要问 50 次。
+  let used = storageUsed.get(state);
+  if (used === undefined)
+    used = chrome.storage.local.getBytesInUse
+      ? await chrome.storage.local.getBytesInUse(null)
+      : bytes(await chrome.storage.local.get(null));
   if (growth > 0 && used + growth > (chrome.storage.local.QUOTA_BYTES || 10485760) - 262144) {
+    storageUsed.set(state, used);
     dataProblem = M('本机记录空间已满，可导出后清理', 'Local record storage is full; export and then clear it.');
     return false;
   }
+  storageUsed.set(state, used + growth);
   if (index < 0) state.words.push(updated);
   else state.words[index] = updated;
   changedWords.add(state);
@@ -3716,20 +3723,31 @@ function contextMenuCreate(options) {
   });
 }
 
-function registerContextMenus() {
+// 右键菜单由浏览器保存，后台被回收再唤醒时它们还在：每次唤醒都先删后建既是白做的写入，也留下一小段没有菜单的空窗。
+// 只在安装/更新、浏览器启动（force）、本浏览器会话里还没建过，或界面语言变了（标题要换）时重建；
+// 「按哪种语言建的」记在 storage.session，扩展重载、浏览器重启都会清掉它。
+const CONTEXT_MENU_LANG_KEY = 'contextMenuLang';
+function registerContextMenus(force = false) {
   menuRegistration = menuRegistration.catch(() => {}).then(async () => {
+    // 先读一次语言偏好：i18n.js 自己那次读取发出得更早，等这次返回时它的回调已经跑完，lang() 是读者选的语言。
+    await chrome.storage.local.get('roamcat_ui_lang').catch(() => {});
+    const lang = globalThis.RoamCatI18n?.lang?.() === 'en' ? 'en' : 'zh';
+    if (force !== true && (await chrome.storage.session.get(CONTEXT_MENU_LANG_KEY).catch(() => ({})))[CONTEXT_MENU_LANG_KEY] === lang) return;
     await chrome.contextMenus.removeAll();
     await contextMenuCreate({id:CONTEXT_EXPLAIN,title:M('RoamCat：帮助理解选中内容','RoamCat: Help me understand the selection'),contexts:['selection'],documentUrlPatterns:['http://*/*','https://*/*']});
     await contextMenuCreate({id:CONTEXT_TOGGLE_READING,title:M('RoamCat：开启/暂停阅读辅助','RoamCat: Toggle reading assist'),contexts:['page'],documentUrlPatterns:['http://*/*','https://*/*']});
     await contextMenuCreate({id:CONTEXT_EMERGENCY_TRANSLATE,title:M('RoamCat：双语翻译本页','RoamCat: Bilingual-translate this page'),contexts:['page'],documentUrlPatterns:['http://*/*','https://*/*']});
     await contextMenuCreate({id:CONTEXT_OPEN_READER,title:M('RoamCat：在阅读器中打开','RoamCat: Open in reader'),contexts:['link'],targetUrlPatterns:['*://*/*.pdf','*://*/*.epub']});
+    await chrome.storage.session.set({[CONTEXT_MENU_LANG_KEY]:lang}).catch(() => {});
   });
   menuRegistration.catch(error => console.error('注册右键菜单失败',error));
   return menuRegistration;
 }
 
-chrome.runtime.onInstalled.addListener(registerContextMenus);
-chrome.runtime.onStartup.addListener(registerContextMenus);
+chrome.runtime.onInstalled.addListener(() => { void registerContextMenus(true); });
+chrome.runtime.onStartup.addListener(() => { void registerContextMenus(true); });
+// 在设置页切换界面语言后立即换菜单标题，不等后台下次重启。
+globalThis.RoamCatI18n?.onChange?.(() => { void registerContextMenus(); });
 chrome.runtime.onInstalled.addListener(details => {
   void settleWelcomeGuide(details?.reason).catch(error => console.error('整理新手引导页失败', error));
 });
@@ -3786,6 +3804,8 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(details => {
 });
 // http(s) 的 .pdf 导航改走扩展阅读器（settings.pdfReader 可关闭）；
 // file:// PDF 需在 chrome://extensions 为扩展勾选「允许访问文件网址」，本地文件也可在阅读器内手动打开。
+// 只让 .pdf 地址的导航唤醒后台：不加过滤时每个页面、每个内嵌框架的导航都会把被回收的后台叫起来，只为发现它不是 PDF。
+const PDF_NAVIGATION_FILTER = {url: [{urlMatches: '^https?://[^?#]*\.[pP][dD][fF]([?#].*)?$'}]};
 chrome.webNavigation.onBeforeNavigate.addListener(details => {
   if (details.frameId !== 0) return;
   try {
@@ -3813,7 +3833,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(details => {
       await chrome.tabs.update(details.tabId, {url: reader});
     })().catch(() => {});
   } catch {}
-});
+}, PDF_NAVIGATION_FILTER);
 // 接管期间原始 PDF 仍然提交了：历史记录里阅读器前面多了一条 PDF，记下来供「后退」时识别。
 chrome.webNavigation.onCommitted.addListener(details => {
   if (details.frameId !== 0 || !/\.pdf(?:[?#]|$)/iu.test(details.url || '')) return;
@@ -3822,7 +3842,7 @@ chrome.webNavigation.onCommitted.addListener(details => {
     if (!takeover || takeover.committed || takeover.url !== details.url || Date.now() - takeover.at > 30000) return;
     await chrome.storage.session.set({[key]: {...takeover, committed: true}});
   })().catch(() => {});
-});
+}, PDF_NAVIGATION_FILTER);
 chrome.tabs.onRemoved.addListener(tabId => {
   void pruneBackgroundQueue();
   void clearPopupIntent(tabId);
@@ -3830,6 +3850,7 @@ chrome.tabs.onRemoved.addListener(tabId => {
   tabActivationGeneration.delete(tabId);
   tabSeenArticle.delete(tabId);
   liveChatRate.forget(tabId);
+  liveChatMtRate.forget(tabId);
   void forgetTabAutomation(tabId);
 });
 void startAutomation().catch(error => console.error('初始化自动开启策略失败',error));

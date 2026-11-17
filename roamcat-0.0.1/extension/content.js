@@ -251,14 +251,15 @@ const LIMIT_ERROR = T('c.limit');
   function updatePassageStatus(outcome='cancelled'){const count=state.passageRequests.size;
     setPageStatus('passage',count?T('c.translatingN',{n:count>1?T('c.nSpots',{n:count}):''}):outcome==='complete'?T('c.transComplete'):outcome==='error'?T('c.transIncomplete'):T('c.transCancelled'),{busy:count>0,error:!count&&outcome==='error',duration:count?0:3000});
   }
-  const capture={timer:0,generation:0,session:null,lastInput:0,lastTick:0,elapsed:0,total:0,sequence:0,sent:new Set(),visible:new Map(),blocks:new WeakMap(),busy:false,summary:false};
+  // dirty：上次扫描之后页面滚动过或正文变过；scanAt：上次真正量位置的时间。
+  const capture={dirty:true,scanAt:0,timer:0,generation:0,session:null,lastInput:0,lastTick:0,elapsed:0,total:0,sequence:0,sent:new Set(),visible:new Map(),blocks:new WeakMap(),busy:false,summary:false};
   function historyInteraction(event){if(event.isTrusted)capture.lastInput=Date.now();}
   function stopHistoryCapture(){clearInterval(capture.timer);capture.timer=0;capture.generation++;capture.session=null;capture.visible.clear();}
   async function startHistoryCapture(){
     stopHistoryCapture();if(!state.settings.readingHistory?.enabled||!state.enabled)return;
     const generation=capture.generation;let session;try{session=await request('HISTORY_BEGIN');}catch{return;}
     if(generation!==capture.generation||!session.enabled)return;
-    capture.session=session;capture.lastInput=Date.now();capture.lastTick=Date.now();capture.elapsed=0;capture.total=0;capture.sequence=session.sequence||0;capture.sent.clear();capture.blocks=new WeakMap();capture.summary=false;
+    capture.session=session;capture.lastInput=Date.now();capture.lastTick=Date.now();capture.elapsed=0;capture.total=0;capture.sequence=session.sequence||0;capture.dirty=true;capture.sent.clear();capture.blocks=new WeakMap();capture.summary=false;
     capture.timer=setInterval(()=>void historyTick(),1000);
   }
   async function historyTick(){
@@ -268,7 +269,14 @@ const LIMIT_ERROR = T('c.limit');
     try{
       await prepareReadingIndex();if(generation!==capture.generation)return;
       const found=resolveReadingRoot(),root=found?.element||document.querySelector('article,main,[role="main"]');if(!root||!inViewport(root))return;
-      const blocks=nearReadingBlocks().filter(block=>containsDeep(root,block)),visible=new Map(),fresh=[];let examined=0;
+      const visible=new Map(),fresh=[];let blocks=null,examined=0;
+      // 每秒一次的扫描要给视口里最多 1000 个单词逐个量位置。页面没滚动、正文没变时，上一秒的结果仍然成立：
+      // 直接沿用各个单词的起始时间，只做计时；最多沿用 5 秒就重新量一次，兜住没有滚动也没有 DOM 变化的版面变动。
+      if(!capture.dirty&&capture.visible.size&&now-capture.scanAt<5000){
+        for(const [id,since] of capture.visible){visible.set(id,since);if(now-since>=2000&&!capture.sent.has(id)&&fresh.length<500)fresh.push(id);}
+      }else{
+      capture.dirty=false;capture.scanAt=now;
+      blocks=nearReadingBlocks().filter(block=>containsDeep(root,block));
       for(const block of blocks){if(!inViewport(block)||unsafe(block))continue;const mapping=textMap(block);if(!/[A-Za-z]/.test(mapping.text))continue;
         let memo=capture.blocks.get(block);if(!memo||memo.text!==mapping.text){memo={text:mapping.text,key:(await sha256(mapping.text))+':'+blockId(block)};capture.blocks.set(block,memo);}
         const {left, top, right, bottom} = clipOf(block);
@@ -286,6 +294,7 @@ const LIMIT_ERROR = T('c.limit');
           if (now - since >= 2000 && !capture.sent.has(id) && fresh.length < 500) fresh.push(id);
         }
         if(examined>1000)break;
+      }
       }
       if(generation!==capture.generation)return;capture.visible=visible;if(!visible.size)return;capture.elapsed+=delta;capture.total+=delta;
       for (const record of state.records) {
@@ -308,7 +317,7 @@ const LIMIT_ERROR = T('c.limit');
       }
       if(capture.elapsed<4000&&!fresh.length)return;
       const payload={sessionId:capture.session.id,epoch:capture.session.epoch,sequence:++capture.sequence,elapsedMs:Math.min(5000,Math.round(capture.elapsed)),words:fresh,domain:state.domain};
-      if(capture.session.summaries&&!capture.summary&&capture.total>=15000&&state.settings.assistanceMode==='ambient'){payload.sample=collectReadingText(blocks).slice(0,2000);capture.summary=true;}
+      if(capture.session.summaries&&!capture.summary&&capture.total>=15000&&state.settings.assistanceMode==='ambient'){payload.sample=collectReadingText(blocks||nearReadingBlocks().filter(block=>containsDeep(root,block))).slice(0,2000);capture.summary=true;}
       const result=await request('HISTORY_TICK',payload);if(generation!==capture.generation)return;if(result.recorded){for(const id of fresh)capture.sent.add(id);capture.elapsed=0;}
     }catch{}finally{capture.busy=false;}
   }
@@ -712,7 +721,7 @@ const LIMIT_ERROR = T('c.limit');
     if(!changed)for(const [block,fact]of readingIndex.facts)if(before.get(block)!==fact.text){changed=true;break;}
     if(changed)scheduleReadingLayout();
   }
-  function readingMutations(mutations){for(const mutation of mutations){const element=nodeElement(mutation.target);if(!element||readingUi(element)||element.closest('script,noscript,template')||composedClosest(element,SKIP_CHROME))continue;
+  function readingMutations(mutations){if(mutations.length)capture.dirty=true;for(const mutation of mutations){const element=nodeElement(mutation.target);if(!element||readingUi(element)||element.closest('script,noscript,template')||composedClosest(element,SKIP_CHROME))continue;
     const pageStyle=node=>node?.nodeType===1&&node.matches('style,link[rel="stylesheet"]')&&!node.id?.startsWith('roamcat-');
     if(pageStyle(element)||mutation.type==='childList'&&[...mutation.addedNodes,...mutation.removedNodes].some(pageStyle)){invalidateReadingIndex();scheduleReadingLayout();continue;}
     if(element.closest('style'))continue;
@@ -721,7 +730,7 @@ const LIMIT_ERROR = T('c.limit');
     if(mutation.type==='childList')for(const node of mutation.addedNodes)if(node.nodeType===1&&!readingUi(node))readingIndex.subtrees.add(node);
     if(readingIndex.elements.size+readingIndex.subtrees.size>128)invalidateReadingIndex();
   }}
-  function invalidateReadingIndex(){readingIndex.full=true;readingIndex.result=undefined;readingIndex.revision++;readingIndex.elements.clear();readingIndex.subtrees.clear();}
+  function invalidateReadingIndex(){capture.dirty=true;readingIndex.full=true;readingIndex.result=undefined;readingIndex.revision++;readingIndex.elements.clear();readingIndex.subtrees.clear();}
   function resetReadingIndex(){readingIndex.observer?.disconnect();readingIndex.viewport?.disconnect();readingIndex.facts.clear();readingIndex.containers.clear();readingIndex.near.clear();readingIndex.scopes.clear();readingIndex.body=null;readingIndex.page='';invalidateReadingIndex();observeReadingScope(document);}
   function initReadingIndex(){
     if(!readingIndex.observer){readingIndex.observer=new MutationObserver(readingMutations);observeReadingScope(document);
@@ -1505,6 +1514,7 @@ const LIMIT_ERROR = T('c.limit');
   let scrollFrame=0,scrollEvent=null;
   function onScroll(event){if(event)scrollEvent={type:event.type};if(scrollFrame)return;scrollFrame=requestAnimationFrame(()=>{scrollFrame=0;const current=scrollEvent;scrollEvent=null;applyScroll(current);});}
   function applyScroll(event) {
+    capture.dirty=true;
     if(event?.type==='resize'||event?.type==='change'){invalidateReadingIndex();if(automatic()){clearTimeout(state.rebuildTimer);state.rebuildTimer=setTimeout(()=>void rebuild(true),180);}}
     if (!sameArticle(state.page, location.href)) {
       onPageNavigation();
