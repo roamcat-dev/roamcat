@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-18
+
 ### 改进
 - **词汇记录改为一词一键存储**：之前所有词汇记录存成一整个数组，改一个词就把整个词库写回一遍，实测 3000 个词（约 1.4 MB）时每次约 270 毫秒；现在每个词单独一个键，只写改动的那几条，同样条件下约 1 毫秒。升级后首次启动自动迁移，每 500 条一批，存储里始终只有一份，不会因为新旧两份并存超出 10 MB 空间；迁移中途关掉浏览器，下次启动接着搬，不丢记录。迁移没完成时导出会把已搬和未搬的记录合在一起。数据版本升到 6：**升级后不能再退回 0.9.1 及更早版本**，旧版会提示「不支持的数据版本，请更新扩展」，而不会把词库当成空的覆盖掉。整库读取（导出、个性化分析等）比原来略慢（同样条件下约 53 → 65 毫秒）。
 - 开发与测试：新增 `word-store.test.mjs`，覆盖按引用比对写入、先删后写、分批迁移的存储峰值、任意一批后崩溃续搬、真后台冷启动迁移与导出、未来版本拒绝运行；`verify:audit` 的「已认识词可撤销」改按拆分存储读取。
@@ -364,7 +366,8 @@ Twitch 直播聊天实时翻译；本机常驻连接服务改为配对令牌认�
 - `host_permissions` 仍为宽泛的 `http(s)://*/*`，计划改为 `optional_host_permissions` 按需申请。
 - 未上架商店；扩展仅支持开发者模式加载（直接加载 `roamcat-0.0.1/extension` 时 ID 与目录路径绑定；`npm run build` 产物 ID 固定）。
 
-[Unreleased]: https://github.com/roamcat-dev/roamcat/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/roamcat-dev/roamcat/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.10.0
 [0.9.1]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.9.1
 [0.9.0]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.9.0
 [0.8.1]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.8.1

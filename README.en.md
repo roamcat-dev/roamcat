@@ -16,7 +16,7 @@
 <p align="center">
   <a href="LICENSE"><img alt="License: MPL-2.0" src="https://img.shields.io/badge/license-MPL--2.0-blue"></a>
   <a href="https://github.com/roamcat-dev/roamcat/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/roamcat-dev/roamcat/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Version 0.9.1" src="https://img.shields.io/badge/version-0.9.1-blue">
+  <img alt="Version 0.10.0" src="https://img.shields.io/badge/version-0.10.0-blue">
   <img alt="Chrome / Edge 125+" src="https://img.shields.io/badge/Chrome%20%2F%20Edge-125%2B-green">
   <img alt="Manifest V3" src="https://img.shields.io/badge/manifest-V3-blueviolet">
 </p>
@@ -48,7 +48,7 @@
 **RoamCat** (随心阅) is a free, open-source browser extension for **Chrome and Edge** that helps Chinese-speaking readers read English websites. It translates pages in place into **bilingual Chinese–English text**, or keeps the page in English and adds **sparse hints that fade as you improve**; it also covers **PDF/EPUB files**, **YouTube bilingual captions** and opt-in **Twitch chat translation**. It is **local-first with no telemetry**, and the AI is yours to choose: **33 bring-your-own API providers**, a local Ollama model, or your existing **ChatGPT / Grok / Google subscription**. More on the [website](https://roamcat-dev.github.io/roamcat/), and an [llms.txt](https://roamcat-dev.github.io/roamcat/llms.txt) for AI assistants.
 
 > [!NOTE]
-> **0.9.1 — fixes: subscriptions failing to reconnect after the background was recycled (and pulling page translations when they did); lookups and translation slowing down as the word store grows; web pages being able to drive the floating cat; the PDF reader trapping the Back button; light oklch() pages detected as dark; settings controls unclickable right after switching sections.** Download the package from [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) or build from source, then load it in developer mode (see [Quick start](#-quick-start)); it is not on any extension store yet. RoamCat rebuilds, optimizes and repairs the open-source [RelyLess](https://github.com/rockythink/relyless) — see [Acknowledgements](#-acknowledgements).
+> **0.10.0 — word records are now stored one key per word, so saving a word writes only that record (about 270 ms → 1 ms with 3,000 words); existing records migrate automatically in batches. After upgrading you cannot go back to 0.9.1 or earlier.** Download the package from [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) or build from source, then load it in developer mode (see [Quick start](#-quick-start)); it is not on any extension store yet. RoamCat rebuilds, optimizes and repairs the open-source [RelyLess](https://github.com/rockythink/relyless) — see [Acknowledgements](#-acknowledgements).
 
 ## ✨ Highlights
 
@@ -126,7 +126,7 @@ Failed passages retry on a graded backoff (2.5s → 6s → 14s, classified by er
 
 Requires **Chrome or Edge 125+**.
 
-**Option A — Release package.** Download `roamcat-0.9.1-extension.zip` from [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) and unzip it. Open `chrome://extensions` (or `edge://extensions`), turn on **Developer mode**, choose **Load unpacked** and pick the unzipped **`roamcat-0.9.1/extension`** folder. For the subscription connector, run `node roamcat-0.9.1/connector/install.mjs` from the directory containing `roamcat-0.9.1/` (Node.js 20+); it works out the extension ID from that folder, so rerun it if you move the folder.
+**Option A — Release package.** Download `roamcat-0.10.0-extension.zip` from [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) and unzip it. Open `chrome://extensions` (or `edge://extensions`), turn on **Developer mode**, choose **Load unpacked** and pick the unzipped **`roamcat-0.10.0/extension`** folder. For the subscription connector, run `node roamcat-0.10.0/connector/install.mjs` from the directory containing `roamcat-0.10.0/` (Node.js 20+); it works out the extension ID from that folder, so rerun it if you move the folder.
 
 **Option B — build from source** (Node.js 22.13+; Node 24 verified):
 
