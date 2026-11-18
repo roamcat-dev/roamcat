@@ -357,8 +357,9 @@
 | 键 | 内容 |
 |---|---|
 | `settings` | 规范化设置（见 `shared.js DEFAULT_SETTINGS`） |
-| `words` | 词档案（≤5000 条；schema v5；义项 ≤8/词） |
-| `wordSchemaVersion` / `productSchemaVersion` | 5 / 1；更高版本拒绝运行并提示更新 |
+| `word:<id>` / `wordIds` | 词档案拆分存储（`word-store.mjs`）：每词一个键，`wordIds` 为有序词 ID 清单（≤5000 条；义项 ≤8/词）。一次写入事务只写引用变了的词、先删后写；清单里有、键已不在的读取时跳过。词对象一律整体替换，不原地修改 |
+| `words` | schema v5 的整份词数组；v6 冷启动时每 500 条一批搬进拆分键（每批一次 `set`：写成独立键、加进清单、从数组拿掉，存储里始终只有一份，中途崩溃下次接着搬），搬完删除 |
+| `wordSchemaVersion` / `productSchemaVersion` | 6 / 1；更高版本拒绝运行并提示更新（v6 写入后旧版扩展会拒绝运行，不会把拆分后的词库当空库覆盖） |
 | `supportDataGeneration` | 支持数据代理号；变更即使缓存/会话失效 |
 | `supportUsage` | 近 28 天按日聚合（eligible/hints/errors/help） |
 | `legacyReadingArchive` | 首次迁移时的旧档案只读副本 |

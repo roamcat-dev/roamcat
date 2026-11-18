@@ -29,7 +29,7 @@ async function until(condition, label, timeoutMs = 4000) {
 
 /** 一次「唤醒」用的 chrome mock：session 存储与已注册脚本表由调用方传入，在多次唤醒间沿用；计数器每次唤醒清零。 */
 function createWake({session, registered}) {
-  const local = new Map([['wordSchemaVersion', 5], ['productSchemaVersion', 1], ['wordMaintenanceVersion', 1], ['words', []]]);
+  const local = new Map([['wordSchemaVersion', 6], ['productSchemaVersion', 1], ['wordMaintenanceVersion', 1], ['wordIds', []]]);
   // tabsQuery 只作参考：欢迎页/设置页整理和 STATE_PATCH 的广播也会查标签页；「逐个标签页补注入」以 tabsGet（activateTab 取标签页）与 executeScript 为准。
   const counts = {tabsQuery: 0, tabsGet: 0, executeScript: 0, tabsSendMessage: 0, register: 0, unregister: 0, getRegistered: 0};
   const listeners = {};
