@@ -4,7 +4,10 @@
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-17
+
 ### 改进
+- 依赖：随扩展发布的 PDF 解析库 pdfjs-dist 从 6.4.299 升到 6.5.438，构建工具 vite 从 8.3.5 升到 8.3.8。
 - 开发与测试：`verify:performance` 里两项靠时机的检查改为按状态判断，满载运行时不再偶发失败。「后台按场景分道」原先固定等 150ms 就当字幕已排队，现在门禁在测试副本里读后台分道与服务闸门的排队数，确认字幕已在服务闸门前排队再放出名额；「字幕机翻逐条交付」原先要赶在整批结束前轮询到进度，现在等整批结束后比较各条进度的到达时刻。`openBrowser` 新增 `prepareExtension(dir)`，门禁可以在临时扩展副本上做专用改动，产物不受影响。
 
 ### 修复
@@ -357,7 +360,8 @@ Twitch 直播聊天实时翻译；本机常驻连接服务改为配对令牌认�
 - `host_permissions` 仍为宽泛的 `http(s)://*/*`，计划改为 `optional_host_permissions` 按需申请。
 - 未上架商店；扩展仅支持开发者模式加载（直接加载 `roamcat-0.0.1/extension` 时 ID 与目录路径绑定；`npm run build` 产物 ID 固定）。
 
-[Unreleased]: https://github.com/roamcat-dev/roamcat/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/roamcat-dev/roamcat/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.9.1
 [0.9.0]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.9.0
 [0.8.1]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.8.1
 [0.8.0]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.8.0
