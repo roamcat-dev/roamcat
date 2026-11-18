@@ -45,6 +45,7 @@ const BROWSER = [
   {name: 'sites', cmd: ['node', 'tools/verify-dev-sites.mjs'], slow: true},
   {name: 'performance', cmd: ['node', 'tools/verify-performance.mjs', ...(quick ? ['--skip-idle'] : [])]},
   {name: 'reader', cmd: ['node', 'tools/verify-reader.mjs']},
+  {name: 'storage', cmd: ['node', 'tools/verify-word-store.mjs']},
   {name: 'pet', cmd: ['node', 'tools/verify-pet-buttons.mjs']},
   {name: 'ui', cmd: ['node', 'tools/verify-ui-all.mjs']},
   {name: 'audit', cmd: ['node', 'tools/audit-extension.mjs']},

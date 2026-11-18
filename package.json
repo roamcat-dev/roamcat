@@ -17,6 +17,7 @@
     "verify:pet": "node tools/verify-pet-buttons.mjs",
     "verify:performance": "node tools/verify-performance.mjs",
     "verify:reader": "node tools/verify-reader.mjs",
+    "verify:storage": "node tools/verify-word-store.mjs",
     "verify:dictation": "node tools/verify-video-dictation.mjs",
     "verify:video": "node tools/verify-video-ui.mjs",
     "verify:livechat": "node tools/verify-live-chat.mjs",
