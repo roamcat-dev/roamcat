@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 function createChromeMock() {
-  const areas = {local: new Map([['wordSchemaVersion',5],['productSchemaVersion',1],['wordMaintenanceVersion',1],['words',[]]]), session: new Map()};
+  const areas = {local: new Map([['wordSchemaVersion',6],['productSchemaVersion',1],['wordMaintenanceVersion',1],['wordIds', []]]), session: new Map()};
   const storageReads=[],storageWrites=[];
   const openedOptions = {count: 0};
   const registeredScripts = [];
@@ -128,8 +128,9 @@ test('迁移后的 background.js 在 mock 浏览器中构造注册表并按信�
   });
   await t.test('当前 schema 冷启动的轻量状态查询不全量读取或重写词库',async()=>{
     const result=await send({type:'STATE_GET'},trustedPopup(chrome));assert.equal(result.ok,true,result.error);
-    assert.ok(!storageReads.some(keys=>keys==null||keys==='words'||Array.isArray(keys)&&keys.includes('words')));
-    assert.ok(!storageWrites.some(keys=>keys.includes('words')));
+    const wordKey=key=>key==='words'||key==='wordIds'||String(key).startsWith('word:');
+    assert.ok(!storageReads.some(keys=>keys==null||(Array.isArray(keys)?keys:[keys]).some(wordKey)));
+    assert.ok(!storageWrites.some(keys=>keys.some(wordKey)));
   });
 
   await t.test('快捷键失败原因：网页读不到，弹窗取走一次即清，标签页换页面自动撤掉', async () => {

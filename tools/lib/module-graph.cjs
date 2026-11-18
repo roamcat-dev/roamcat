@@ -54,6 +54,7 @@ const DOMAIN = Object.freeze([
   'usage-stats.mjs',
   'rate-window.mjs',
   'work-lanes.mjs',
+  'word-store.mjs',
   'message-protocol.js',
   'message-router.js',
   'activation.js',

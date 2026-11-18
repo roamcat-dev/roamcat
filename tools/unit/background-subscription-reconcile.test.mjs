@@ -28,7 +28,7 @@ async function until(condition, label, timeoutMs = 4000) {
 
 test('订阅登录状态翻转才重新对账，同一登录状态下的其它变化不触发', async () => {
   const session = new Map();
-  const local = new Map([['wordSchemaVersion', 5], ['productSchemaVersion', 1], ['wordMaintenanceVersion', 1], ['words', []]]);
+  const local = new Map([['wordSchemaVersion', 6], ['productSchemaVersion', 1], ['wordMaintenanceVersion', 1], ['wordIds', []]]);
   const counts = {executeScript: 0};
   const registered = [];
   const read = (map, keys) => {

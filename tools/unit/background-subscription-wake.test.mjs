@@ -21,7 +21,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function createWake({session}) {
   const local = new Map([
-    ['wordSchemaVersion', 5], ['productSchemaVersion', 1], ['wordMaintenanceVersion', 1], ['words', []],
+    ['wordSchemaVersion', 6], ['productSchemaVersion', 1], ['wordMaintenanceVersion', 1], ['wordIds', []],
     ['settings', {providerKind: 'chatgpt', subscriptionModel: 'gpt-test'}], ['subscriptionLinked', true],
   ]);
   const counts = {connectNative: 0, status: 0, refresh: 0};

@@ -42,6 +42,7 @@ import {listProviderModels,performProviderRequest,providerRequestTimeoutMs} from
 import {getMtProvider,mergeMtCredentials,mtConcurrency,mtEngineFor,mtEngineIdentity,mtRequestInterval,mtServiceOrigins,normalizeMtService} from './mt-providers.mjs';
 import {mtTranslate,mtTranslationIssue} from './mt-transport.mjs';
 import {createServiceGates,createWorkLanes,laneLimit} from './work-lanes.mjs';
+import {WORD_SCHEMA_VERSION,readWords,diffWords,hasWordChanges,writeWordDiff,clearWords,migrateWordArray} from './word-store.mjs';
 import {translateLocal} from './local-translator.js';
 import { analyze, analyzeBatch, createLexiconContext, englishTokenStats, ensureLexicon, historyMatches, isKnownTerm, localReferenceFor, resolveCanonicalTerm } from './lexicon.js';
 import { encounter, interact, migrateSupportWord, normalizeKnownAt, normalizeSenseLabel, readingEvidence } from './reading.js';
@@ -148,17 +149,14 @@ const ready = (async () => {
   const header = await chrome.storage.local.get(['wordSchemaVersion','productSchemaVersion','wordMaintenanceVersion',CLEANUP_KEY]);
   const data = header;
   cleanupPending=Boolean(data[CLEANUP_KEY]);
-  futureSchema = data.wordSchemaVersion > 5 || data.productSchemaVersion > 1;
+  futureSchema = data.wordSchemaVersion > WORD_SCHEMA_VERSION || data.productSchemaVersion > 1;
   if (futureSchema) { dataProblem = M('不支持的数据版本，请更新扩展','Unsupported data version; please update the extension.'); return; }
+  // schema v6：词档案拆成每词一个键（word-store.mjs），读取路径各自规范化字段；冷启动不读整个词库。
+  if (data.wordSchemaVersion === WORD_SCHEMA_VERSION && data.productSchemaVersion === 1) { schemaReady = true; return; }
+  // schema v5 → v6：把 `words` 数组分批搬进拆分键，顺带补上 knownAt 修复（v5 的 wordMaintenanceVersion 1）。
   if (data.wordSchemaVersion === 5 && data.productSchemaVersion === 1) {
-    // 当前 schema 的读取路径各自规范化字段；冷启动不重复重写整个词库。
-    if(data.wordMaintenanceVersion!==1){
-      try{const {words=[]}=await chrome.storage.local.get('words');
-        const repaired=words.map(word=>({...word,knownAt:normalizeKnownAt(word.knownAt)}));
-        await chrome.storage.local.set({wordMaintenanceVersion:1,...(repaired.some((word,index)=>word.knownAt!==words[index].knownAt)?{words:repaired}:{})});
-      }catch{dataProblem=M('本机数据修复未完成，请重试。','Local data maintenance is incomplete; please retry.');return;}
-    }
-    schemaReady = true;
+    try { await migrateWordArray(chrome.storage.local,{repair:word=>({...word,knownAt:normalizeKnownAt(word.knownAt)}),extra:{wordMaintenanceVersion:1}}); schemaReady = true; }
+    catch { dataProblem=M('本机词汇记录迁移未完成，请重新加载扩展重试。','Local word records have not finished migrating; reload the extension to retry.'); }
     return;
   }
   Object.assign(data,await chrome.storage.local.get(['settings','words','supportDataGeneration','supportUsage','onDemandSuggestionShownAt','legacyReadingArchive']));
@@ -174,10 +172,11 @@ const ready = (async () => {
     onDemandSuggestionShownAt: Number.isFinite(data.onDemandSuggestionShownAt) ? data.onDemandSuggestionShownAt : 0
   };
   if (!Object.hasOwn(data,'legacyReadingArchive')) update.legacyReadingArchive = structuredClone(data.words || []);
-  try { await chrome.storage.local.set(update); schemaReady = true; void chrome.storage.local.remove(['glossCache','supportCache']).catch(()=>{}); }
+  // 旧 schema 先按原样迁到 v5 的 `words` 数组，再由 migrateWordArray 拆成每词一个键（v6）。
+  try { await chrome.storage.local.set(update); await migrateWordArray(chrome.storage.local); schemaReady = true; void chrome.storage.local.remove(['glossCache','supportCache']).catch(()=>{}); }
   catch { dataProblem = M('本机数据迁移未完成，可导出或清理；当前仅提供无记忆帮助。','Local data migration is incomplete; export or clear it. Only memory-free help is available for now.'); }
 })();
-async function passiveReadingState(){await dataReady;assertDataAvailable();const data=await chrome.storage.local.get(['settings','words']);return {settings:normalizeSettings(data.settings),words:schemaReady?data.words||[]:[]};}
+async function passiveReadingState(){await dataReady;assertDataAvailable();const [data,words]=await Promise.all([chrome.storage.local.get('settings'),schemaReady?readWords(chrome.storage.local):[]]);return {settings:normalizeSettings(data.settings),words};}
 const readingHistory=createReadingHistory({storage:chrome.storage.local,session:chrome.storage.session,source:readingSource,writable:()=>schemaReady&&!futureSchema&&!cleanupPending,paused:tabPaused,state:passiveReadingState,runModel:runHistoryModel,onChange:invalidateReadingProfile});
 const dataReady=ready.then(async()=>{
   await readingHistory.ready;
@@ -403,8 +402,7 @@ async function awaitAutoConnect(settings, waitMs) {
 async function load(includeWords=true) {
   await dataReady;await readingHistory.ready;assertDataAvailable();
   const keys=['settings','subscriptionLinked','grokSubscriptionLinked','antigravitySubscriptionLinked','supportDataGeneration','supportUsage','onDemandSuggestionShownAt','roamcat_ui_lang'];
-  if(includeWords)keys.push('words');
-  const data = await chrome.storage.local.get(keys);
+  const [data,storedWords] = await Promise.all([chrome.storage.local.get(keys),includeWords&&schemaReady?readWords(chrome.storage.local):[]]);
   const settings = normalizeSettings(data.settings);
   // 自动连接改为「不阻塞 + 节流」：load() 永远不要等待本机连接器。
   if ((settings.providerKind === 'chatgpt' || settings.domainDetection.mode === 'chatgpt') && data.subscriptionLinked) void autoConnectSubscription('chatgpt');
@@ -412,7 +410,7 @@ async function load(includeWords=true) {
   if ((settings.providerKind === 'antigravity' || settings.domainDetection.mode === 'antigravity') && data.antigravitySubscriptionLinked) void autoConnectSubscription('antigravity');
   return {
     settings,
-    words: includeWords && schemaReady ? data.words || [] : [],
+    words: storedWords,
     supportDataGeneration: data.supportDataGeneration || 0,
     supportUsage: Array.isArray(data.supportUsage) ? data.supportUsage : [],
     onDemandSuggestionShownAt: Number.isFinite(data.onDemandSuggestionShownAt) ? data.onDemandSuggestionShownAt : 0,
@@ -482,16 +480,18 @@ async function broadcast(){const state=await load(false).catch(()=>null);const s
 chrome.storage.onChanged?.addListener((changes, area) => {
   if (area === 'local' && changes.roamcat_ui_lang) void broadcast();
 });
-const changedWords=new WeakSet();
+// 一次写入事务：词档案只写引用变了的那几条（word-store.mjs 按引用比对），其他键按值变化整键写入。
+// 词对象一律整体替换（{...word, …}），不要原地改字段——原地改的词不会被写回。
 function mutate(operation,notify=true,includeWords=true){
   const work=writes.then(async()=>{
-    const state=await load(includeWords),before={...state};
+    const state=await load(includeWords),before={...state},priorWords=[...state.words];
     if(futureSchema)throw new Error(M('不支持的数据版本，请更新扩展','Unsupported data version; please update the extension.'));
     if(!schemaReady)throw new Error(dataProblem);
     const result=await operation(state);assertDataAvailable();
-    const patch=Object.fromEntries(Object.entries(state).filter(([key,value])=>value!==before[key]||(key==='words'&&changedWords.has(state))));
-    changedWords.delete(state);
-    if(Object.keys(patch).length)await chrome.storage.local.set(patch);
+    const patch=Object.fromEntries(Object.entries(state).filter(([key,value])=>key!=='words'&&value!==before[key]));
+    const wordChanges=includeWords?diffWords(priorWords,state.words):null;
+    if(hasWordChanges(wordChanges))await writeWordDiff(chrome.storage.local,wordChanges,patch);
+    else if(Object.keys(patch).length)await chrome.storage.local.set(patch);
     if(notify)void broadcast();return result;
   });
   writes=work.catch(()=>{});return work;
@@ -525,7 +525,6 @@ async function saveRecord(state, updated) {
   storageUsed.set(state, used + growth);
   if (index < 0) state.words.push(updated);
   else state.words[index] = updated;
-  changedWords.add(state);
   return true;
 }
 const domainCache = new Map();
@@ -2814,10 +2813,10 @@ async function clearReadingData(scope,recovering=false){
     await readingHistory.clear({notify:false});
     const current=await chrome.storage.local.get('supportDataGeneration');
     const update={supportDataGeneration:(Number(current.supportDataGeneration)||0)+1};
-    if(target==='memory')Object.assign(update,{words:[],supportUsage:[],onDemandSuggestionShownAt:0});
+    if(target==='memory'){Object.assign(update,{supportUsage:[],onDemandSuggestionShownAt:0});await clearWords(chrome.storage.local);}
     await chrome.storage.local.set(update);
     await Promise.allSettled([domainCacheWrites,sentenceGroupCacheWrites,emergencyWrites,readingSessionWrites,usageStatsWrites]);
-    if(target==='memory')await chrome.storage.local.remove(['legacyReadingArchive','glossCache','supportCache',USAGE_STATS_KEY]);
+    if(target==='memory')await chrome.storage.local.remove(['words','legacyReadingArchive','glossCache','supportCache',USAGE_STATS_KEY]);
     await clearSupportSessions();
     const all=await chrome.storage.session.get(null);
     const keys=Object.keys(all).filter(key=>['supportCache','sentenceGroupCache','domainCache','readingHistorySessions'].includes(key)||key.startsWith('emergencySession:')||key.startsWith('pageDomain:'));
@@ -2832,19 +2831,25 @@ async function clearReadingData(scope,recovering=false){
 async function readingExport() {
   await ready;
   await usageStatsWrites.catch(() => {});
-  const data = await chrome.storage.local.get([
-    'wordSchemaVersion',
-    'productSchemaVersion',
-    'words',
-    'legacyReadingArchive',
-    'supportUsage',
-    'onDemandSuggestionShownAt',
-    USAGE_STATS_KEY
+  const [data, records] = await Promise.all([
+    chrome.storage.local.get([
+      'wordSchemaVersion',
+      'productSchemaVersion',
+      'words',
+      'legacyReadingArchive',
+      'supportUsage',
+      'onDemandSuggestionShownAt',
+      USAGE_STATS_KEY
+    ]),
+    readWords(chrome.storage.local)
   ]);
+  // 迁移没做完时，一部分词已在拆分键里、其余还在旧的 `words` 数组里：两边合起来导出，不丢记录。
+  const exported = new Set(records.map(word => word.id));
+  for (const word of Array.isArray(data.words) ? data.words : []) if (word?.id && !exported.has(word.id)) { exported.add(word.id); records.push(word); }
   return {
     schemaVersion: data.wordSchemaVersion,
     productSchemaVersion: data.productSchemaVersion,
-    records: data.words || [],
+    records,
     legacyRecords: data.legacyReadingArchive || [],
     supportUsage: data.supportUsage || [],
     onDemandSuggestionShownAt: data.onDemandSuggestionShownAt || 0,
@@ -3196,11 +3201,16 @@ const messageHandlers = [
       if (!word || !word.senses.some(s => s.key === message.senseKey))
         throw new Error(M('词条或义项不存在。', 'The entry or sense does not exist.'));
       await mutate(state => {
-        const w = state.words.find(v => v.id === word.id);
-        w.hintPreference = null;
-        w.senses.find(s => s.key === message.senseKey).hintPreference = null;
-        w.revision++;
-        changedWords.add(state);
+        const index = state.words.findIndex(v => v.id === word.id);
+        if (index < 0) return;
+        const w = state.words[index];
+        // 整体替换词对象：拆分存储按引用判断哪些词要写回。
+        state.words[index] = {
+          ...w,
+          hintPreference: null,
+          senses: w.senses.map(s => (s.key === message.senseKey ? { ...s, hintPreference: null } : s)),
+          revision: (w.revision || 0) + 1
+        };
       }, false);
       return readingHistory.operate('setOverride', {
         wordId: message.wordId,
