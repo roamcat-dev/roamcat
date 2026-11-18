@@ -5,7 +5,7 @@
  *   信任边界与载荷校验经注册表派发后行为不变。这是无浏览器环境下最接近 audit-extension.mjs 的一层。
  * 主要内容：mock chrome.runtime/storage/tabs；import 真实 background.js（node:test 每文件独立进程，
  *   模块缓存只在本文件内共享，因此 import 与全部派发断言放在同一测试的子树中）；经 onMessage 监听器
- *   发送 STATE_GET / OPEN_OPTIONS / DOMAIN_TEST / FLOATING_PET_POSITION_SET / API_MODELS_LIST /
+ *   发送 STATE_GET / OPEN_OPTIONS / DOMAIN_TEST / PAGE_DOMAIN_SET（记住此网站落库）/ FLOATING_PET_POSITION_SET / API_MODELS_LIST /
  *   LIVE_CHAT_TRANSLATE（主机/开关检查与 API 限额）/ TAB_ERROR_TAKE（快捷键失败原因取走即清、换页面撤掉）/ ENSURE_PAGE_UI（Twitch 补注入、阅读脚本与九件套同序）/ 未知类型，断言成功、拒绝与错误文案；导入期不得出现注册表完整性告警。
  * 模块边界：仅 mock 浏览器边界，不 mock 任何被测扩展模块；不访问 IndexedDB（history-store 懒加载，
  *   本测试不触发历史操作）。
@@ -277,6 +277,24 @@ test('迁移后的 background.js 在 mock 浏览器中构造注册表并按信�
       assert.equal(state.floatingPet.themeMode, 'dark');
     } finally {
       await send({type:'STATE_PATCH',patch:{floatingPet:before.floatingPet}}, trustedPopup(chrome));
+    }
+  });
+
+  await t.test('记住此网站：领域规则写进已保存的设置（mutate 按引用判断改动，设置须整体替换）', async () => {
+    const before = (await send({type:'STATE_GET'}, trustedPopup(chrome))).data.settings;
+    tabUrls.set(7, 'https://docs.example.org/guide/start');
+    try {
+      const result = await send({type:'PAGE_DOMAIN_SET', tabId:7, domain:'tech', rememberSite:true}, trustedPopup(chrome));
+      assert.equal(result.ok, true, result.error);
+      const rules = (await chrome.storage.local.get('settings')).settings?.domainRules || [];
+      assert.ok(rules.some(rule => rule.host === 'docs.example.org' && rule.pathPrefix === '/' && rule.domain === 'tech'), JSON.stringify(rules));
+      const again = await send({type:'PAGE_DOMAIN_SET', tabId:7, domain:'data', rememberSite:true}, trustedPopup(chrome));
+      assert.equal(again.ok, true, again.error);
+      const replaced = (await send({type:'STATE_GET'}, trustedPopup(chrome))).data.settings.domainRules.filter(rule => rule.host === 'docs.example.org');
+      assert.deepEqual(replaced.map(rule => rule.domain), ['data'], '同一网站再记一次替换旧规则');
+    } finally {
+      tabUrls.delete(7);
+      await send({type:'STATE_PATCH',patch:{domainRules:before.domainRules}}, trustedPopup(chrome));
     }
   });
 

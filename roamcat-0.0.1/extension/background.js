@@ -480,8 +480,9 @@ async function broadcast(){const state=await load(false).catch(()=>null);const s
 chrome.storage.onChanged?.addListener((changes, area) => {
   if (area === 'local' && changes.roamcat_ui_lang) void broadcast();
 });
-// 一次写入事务：词档案只写引用变了的那几条（word-store.mjs 按引用比对），其他键按值变化整键写入。
-// 词对象一律整体替换（{...word, …}），不要原地改字段——原地改的词不会被写回。
+// 一次写入事务：词档案只写引用变了的那几条（word-store.mjs 按引用比对），其他顶层键也按引用判断、变了才整键写入。
+// 词对象与 settings 等对象一律整体替换（{...word, …}、state.settings = {...state.settings, …}），
+// 不要原地改字段——原地改的对象引用没变，不会被写回。
 function mutate(operation,notify=true,includeWords=true){
   const work=writes.then(async()=>{
     const state=await load(includeWords),before={...state},priorWords=[...state.words];
@@ -623,7 +624,7 @@ async function setPageDomain(message) {
     await mutate(state => {
       const host = page.url.hostname.toLowerCase().replace(/\.$/,'');
       const rules = state.settings.domainRules.filter(rule => !(rule.host === host && rule.pathPrefix === '/' && !rule.includeSubdomains));
-      state.settings.domainRules = normalizeDomainRules([...rules,{host,pathPrefix:'/',includeSubdomains:false,domain:selected}]);
+      state.settings = {...state.settings,domainRules:normalizeDomainRules([...rules,{host,pathPrefix:'/',includeSubdomains:false,domain:selected}])};
       invalidateClassification();
     });
   }
