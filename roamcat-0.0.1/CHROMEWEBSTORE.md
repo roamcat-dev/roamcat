@@ -82,7 +82,7 @@ Roam the English web like a cat: bilingual page translation plus reading aids wi
 4. 按需调整提示密度、查词方式、显示样式与网站规则；订阅连接器需要用户另行安装
 
 隐私与权限
-• 阅读记录、词档案与摘要默认只保存在本机，可随时导出或清理
+• 阅读记录、词档案与摘要默认只保存在本机，可随时导出或清理；词档案、术语表与阅读偏好可导出成备份，换电脑后再导入
 • 需要模型生成帮助时，目标词句与有限上下文会发送给你自己选择的服务；扩展不设中转服务器，
   不收集任何分析或遥测数据
 • API Key 只保存在浏览器本机存储中
@@ -124,7 +124,7 @@ How to use
 4. Adjust hint density, lookup style and site rules in Settings; subscription connectors require a separate local installation
 
 Privacy
-• Reading records, word notes and digests stay on your device and can be exported or cleared anytime
+• Reading records, word notes and digests stay on your device and can be exported or cleared anytime; your word profile, glossary and reading preferences can be backed up and imported on another computer
 • When a model is needed, only the target words and limited context are sent to the service you choose;
   there is no relay server, and no analytics or telemetry
 • API keys are stored only in your browser's local storage
@@ -174,7 +174,7 @@ Chinese (Simplified)
 |------------|------|---------------|
 | `activeTab` | permissions | Allows reading assistance, selected-text help, and page translation on the current tab after a toolbar action, keyboard shortcut, or context-menu action. |
 | `scripting` | permissions | Loads the reading, translation, summary, and companion UI into permitted pages as features are activated. Reading extraction excludes form inputs and hidden content. |
-| `storage` | permissions | Saves model settings, API credentials, word profiles, optional reading records, and diagnostics on the device. Users can clear or export supported data. No Chrome account sync is used. |
+| `storage` | permissions | Saves model settings, API credentials, word profiles, optional reading records, and diagnostics on the device. Users can clear or export supported data, and import a backup file they exported earlier (word profile, glossary, site rules and reading preferences; never model services or credentials). No Chrome account sync is used. |
 | `nativeMessaging` | permissions | Connects to an optional, separately installed program on the user's computer to use the user's signed-in CLI services and retrieve the local service pairing token. No publisher-operated relay is used. |
 | `offscreen` | permissions | Hosts the bundled offline topic-recognition worker. Its topic-classifier scripts, WebAssembly runtime, and model are packaged with the extension; remote classifier downloads are disabled. The same document runs the browser Translator API with prepared language packs; downloading those browser-managed packs requires a click in settings. |
 | `contextMenus` | permissions | Adds selected-text help, reading assistance, and page translation actions to the right-click menu. |

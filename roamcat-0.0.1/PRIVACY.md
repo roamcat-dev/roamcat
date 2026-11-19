@@ -1,6 +1,6 @@
 # Privacy Policy — RoamCat · 随心阅
 
-Last updated: 2026-11-02
+Last updated: 2026-11-19
 
 > 用途：本文是 RoamCat · 随心阅 的隐私政策正文。当前公开 URL：
 > https://github.com/roamcat-dev/roamcat/blob/main/roamcat-0.0.1/PRIVACY.md
@@ -63,7 +63,8 @@ API Key、访问密钥、应用密钥、可选 MyMemory 邮箱和 DeepLX 令牌�
 ## User Controls
 
 - 随时在设置中开启或关闭：阅读记录、阅读摘要、个性化分析、本机支持记忆、诊断记录、伴读猫、Twitch 直播聊天翻译。
-- 随时导出或清理：支持数据（JSON）、阅读记录、诊断信息。
+- 随时导出或清理：备份（JSON：词档案、术语表、网站规则、自动开启网站和阅读偏好；不含模型服务、任何密钥和阅读记录）、阅读记录、诊断信息。
+- 备份可在设置 → 数据与隐私导入，选择「合并」或「覆盖」；文件只在本机读取和校验，不联网，导入也不会改动本机的模型服务与密钥。
 - 「记住求助词与支持偏好」关闭后，不再读取或更新个人词档案；原有档案保留至你清理为止。
 
 ## Changes to This Policy

@@ -34,6 +34,12 @@ function mockChrome(){
       case 'VIDEO_SETTINGS_PATCH':{if(window.qa.failVideo)return {ok:false,error:'模拟视频设置保存失败'};const settings=read();settings.video={...settings.video,...message.patch};localStorage.setItem('qa-settings',JSON.stringify(settings));data={video:settings.video};break;}
       case 'PAGE_TRANSLATION_DISPLAY_SET':{if(window.qa.failDisplay)return {ok:false,error:'模拟显示方式保存失败'};const settings=read();settings.pageTranslationDisplay=message.display;localStorage.setItem('qa-settings',JSON.stringify(settings));data={display:message.display};break;}
       case 'SENTENCE_GROUPS_DENSITY_SET':if(window.qa.failDensity)return {ok:false,error:'模拟保存失败'};localStorage.setItem('qa-density',message.density);data={density:message.density};break;
+      case 'READING_DATA_IMPORT':{
+        const mergeWords={incoming:3,added:2,updated:1,unchanged:0,keptLocal:0,removed:0,local:4,total:6},replaceWords={incoming:3,added:2,updated:1,unchanged:0,keptLocal:0,removed:3,local:4,total:3};
+        if(message.dryRun){data={dryRun:true,meta:{formatVersion:1,schemaVersion:6,exportedAt:'2026-11-19T08:00:00.000Z',extensionVersion:'0.10.1',hasSettings:true},contents:{words:3,skippedWords:1,terms:2,rules:1,sites:1,hasSettings:true},merge:window.qa.importMergeError?{mode:'merge',error:window.qa.importMergeError}:{mode:'merge',words:mergeWords},replace:{mode:'replace',words:replaceWords}};break;}
+        window.qa.imported=(window.qa.imported||[]).concat({mode:message.mode,text:message.text});
+        if(window.qa.importDelay)await new Promise(resolve=>setTimeout(resolve,window.qa.importDelay));
+        data={imported:true,mode:message.mode,words:message.mode==='replace'?replaceWords:mergeWords,preferences:message.mode==='replace'?{changed:2,skipped:['domain']}:null};break;}
       case 'HISTORY_GET':{const daily=Array.from({length:14},(_,i)=>({day:new Date(Date.now()-(13-i)*86400000).toISOString().slice(0,10),activeMs:(i%4===0?0:(i+3)*60000),terms:i*2,sentences:i%4}));data={config:{enabled:true,startedAt:Date.now()-14*86400000,origins:[]},events:[],rules:[],summaries:[],daily,metrics:{activeMs:7200000,words:8400,terms:48,queries:62,sentences:12}};break;}
     }
     return {ok:true,data};
@@ -117,6 +123,38 @@ try{
   await page.evaluate(()=>{const settings=JSON.parse(localStorage.getItem('qa-settings'));Object.assign(settings,{assistanceMode:'on-demand',lookupDisplay:'annotation',lookupKey:'F'});localStorage.setItem('qa-settings',JSON.stringify(settings));});
   await page.goto(base+'/ui/options.html#privacy');await page.reload();await ready();await page.evaluate(()=>{qa.events.length=0;qa.failPatch=true;});page.once('dialog',d=>d.accept());await page.locator('#reset-config').click();await until(()=>qa.events.some(e=>e.type==='STATE_PATCH')&&!document.querySelector('#reset-config').disabled);assert.equal(await page.locator('#lookup-key').inputValue(),'F');assert.equal(await page.locator('#reset-config').isDisabled(),false);assert.equal(await page.evaluate(()=>qa.events.filter(e=>e.type==='STATE_PATCH').length),1);assert.equal(await page.evaluate(()=>qa.events.some(e=>e.type==='SENTENCE_GROUPS_DENSITY_SET')),false);
   await page.evaluate(()=>{qa.events.length=0;qa.failPatch=false;});page.once('dialog',d=>d.accept());await page.locator('#reset-config').click();await until(()=>document.querySelector('#lookup-key').value==='D');assert.equal(await page.locator('#lookup-key').inputValue(),'D');assert.equal(await page.evaluate(()=>qa.events.filter(e=>e.type==='STATE_PATCH').length),1);report.checks.push('Reset saves preferences together; failed save preserves controls and does not change density');
+  // 导入备份：选文件只发预览（不写）→ 默认合并 → 换成覆盖时说明跟着变 → 覆盖要再确认一次、取消确认不发请求 →
+  // 导入后面板收起并提示结果；「取消」收起面板不导入；合并不可用时只禁用合并、自动选覆盖并写出原因。
+  const backupFile=JSON.stringify({format:'roamcat-backup',formatVersion:1,schemaVersion:6,productSchemaVersion:1,records:[]});
+  const chooseBackup=()=>page.evaluate(text=>{const input=document.querySelector('#import-file'),transfer=new DataTransfer();transfer.items.add(new File([text],'roamcat-backup.json',{type:'application/json'}));input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));},backupFile);
+  const importMode=()=>page.locator('input[name="import-mode"]:checked').inputValue();
+  const importText=id=>page.locator(id).textContent();
+  await page.evaluate(()=>{qa.events.length=0;qa.imported=[];});
+  await chooseBackup();await until(()=>!document.querySelector('#import-panel').hidden);
+  assert.deepEqual(await page.evaluate(()=>qa.events.filter(e=>e.type==='READING_DATA_IMPORT').map(e=>e.dryRun)),[true]);
+  assert.match(await importText('#import-summary'),/RoamCat 0\.10\.1 导出的备份：3 个词、2 条术语、1 条网站规则、1 个自动开启网站/);
+  assert.match(await importText('#import-summary'),/另有 1 条记录无法识别/);
+  assert.equal(await importMode(),'merge');assert.match(await importText('#import-mode-desc'),/新增 2 个词，1 个词换成备份里更新的版本/);
+  await page.locator('label:has(input[name="import-mode"][value="replace"])').click();await until(()=>/其中 3 个会被删除/.test(document.querySelector('#import-mode-desc').textContent));
+  page.once('dialog',d=>d.dismiss());await page.locator('#import-confirm').click();await page.settle();
+  assert.equal(await page.evaluate(()=>qa.imported.length),0,'取消覆盖确认不应导入');assert.equal(await page.locator('#import-panel').isHidden(),false);
+  page.once('dialog',d=>d.accept());await page.locator('#import-confirm').click();await until(()=>document.querySelector('#import-panel').hidden&&/已覆盖/.test(document.querySelector('#import-result').textContent));
+  assert.deepEqual(await page.evaluate(()=>qa.imported.map(row=>row.mode)),['replace']);assert.equal(await page.evaluate(()=>qa.imported[0].text),backupFile);
+  assert.match(await importText('#import-result'),/有 1 项设置无法识别/);
+  await chooseBackup();await until(()=>!document.querySelector('#import-panel').hidden);await page.locator('#import-cancel').click();
+  assert.equal(await page.locator('#import-panel').isHidden(),true);assert.equal(await page.evaluate(()=>qa.imported.length),1,'取消不导入');
+  await page.evaluate(()=>{qa.importMergeError='术语表最多保存 1000 条。';});await chooseBackup();await until(()=>!document.querySelector('#import-panel').hidden);
+  assert.equal(await page.locator('input[name="import-mode"][value="merge"]').isDisabled(),true);assert.equal(await importMode(),'replace');
+  assert.match(await importText('#import-mode-desc'),/「合并」不可用：术语表最多保存 1000 条。/);
+  // 后台导入要一会儿：请求在路上时不能取消、换文件或改方式，否则界面会丢掉已经写入的结果。
+  await page.evaluate(()=>{qa.importDelay=400;});
+  page.once('dialog',d=>d.accept());await page.locator('#import-confirm').click();await until(()=>qa.imported.length===2);
+  assert.deepEqual(await page.evaluate(()=>['#import-cancel','#import-confirm','#import-data'].map(id=>document.querySelector(id).disabled).concat([...document.querySelectorAll('input[name="import-mode"]')].map(input=>input.disabled))),[true,true,true,true,true],'导入进行中不能取消、换文件或改方式');
+  await until(()=>document.querySelector('#import-panel').hidden&&/已覆盖/.test(document.querySelector('#import-result').textContent));
+  assert.equal(await page.locator('#import-cancel').isDisabled(),false);
+  assert.deepEqual(await page.evaluate(()=>qa.imported.map(row=>row.mode)),['replace','replace']);
+  await page.evaluate(()=>{qa.importMergeError='';qa.importDelay=0;});
+  report.checks.push('Backup import previews without writing, defaults to merge, explains each mode, asks again before replacing, cancels cleanly, locks the panel while importing, and disables only the mode that cannot apply');
   await page.evaluate(()=>{const settings=JSON.parse(localStorage.getItem('qa-settings'));Object.assign(settings,{providerKind:'api',activeApiServiceId:'sn',apiServices:[{id:'sn',name:'SenseNova',providerId:'sensenova',baseUrl:'https://token.sensenova.cn/v1',model:'sensenova-6.8-flash-lite',apiKey:'fake-local-test-key',options:{channel:'tokenplan',reasoningEffort:'medium'}},{id:'zp',name:'GLM',providerId:'zhipu',baseUrl:'https://open.bigmodel.cn/api/paas/v4',model:'glm-5.3',apiKey:'fake-local-test-key',options:{channel:'open',reasoningEffort:'high'}}]});localStorage.setItem('qa-settings',JSON.stringify(settings));});
   await page.goto(base+'/ui/options.html#service');await page.reload();await ready();await page.locator('#api-editor').evaluate(e=>e.open=true);
   const effort=page.locator('#provider-fields [data-provider-option="reasoningEffort"]'),levelValues=()=>effort.locator('option').evaluateAll(list=>list.map(o=>o.value)),model=page.locator('#provider-model');

@@ -52,7 +52,7 @@
 │   · auto-start.js：按站规则自动开启                           │
 ├────────────────────────────────────────────────────────────┤
 │ Service Worker（background.js，ES module）                   │
-│   · 82 种消息路由、设置校验、缓存、并发、诊断、订阅端口管理    │
+│   · 83 种消息路由、设置校验、缓存、并发、诊断、订阅端口管理    │
 │   · roamcat_ui_lang 变更经 storage.onChanged → SS_REFRESH 广播 │
 ├────────────────────────────────────────────────────────────┤
 │ 扩展页面：popup.html / options.html / welcome.html / reader.html │
@@ -111,7 +111,7 @@
 ### 4.1 Service Worker
 | 文件 | 职责 | 关键约束 |
 |---|---|---|
-| `background.js` | 消息路由（82 种，与 `MESSAGE_TYPES` 一一对应）、设置校验与迁移、四大模型链路编排、缓存/并发/看门狗、订阅端口状态、诊断编排 | 无跨调用内存态假设；所有写操作串行化（`writes` 链）；长操作必须带 `guard()`；自动开启对账分两档（见下） |
+| `background.js` | 消息路由（83 种，与 `MESSAGE_TYPES` 一一对应）、设置校验与迁移、四大模型链路编排、缓存/并发/看门狗、订阅端口状态、诊断编排 | 无跨调用内存态假设；所有写操作串行化（`writes` 链）；长操作必须带 `guard()`；自动开启对账分两档（见下） |
 | `subscription.js` | 三个连接器的端口、请求-响应映射、超时（assist / 翻译 / 总结 / 听写 120s，其余 45s）、进度事件转发 | 端口单例；断开时拒绝全部在途请求 |
 | `diagnostic-service.js` / `diagnostics.mjs` | traceId 贯穿、元数据脱敏、渲染回执、连接器镜像 | 只记录结构化元数据，不记录正文/密钥 |
 | `history-service.js` / `history-store.js` | 阅读记录（IndexedDB）、摘要/个性化引擎装配 | 记录默认关闭，需显式授权 origin |
@@ -121,12 +121,13 @@
 | `activation.js` / `auto-start.js` | 自动开启策略、动态注册 content script、SPA 导航检测；`pageOrigin`/`sitePattern`/`validateAutomation`/`validateVideo`/`registrationMatches`/`isManagedContentScript`/`contentScriptsInSync` 为纯函数（已纳入领域层 lint 与单测） | `registrationMatches()` 是权限/注册的唯一事实源；`contentScriptsInSync()` 判断已注册的内容脚本是否已与期望一致 |
 | `shared.js` | `DEFAULT_SETTINGS`、`normalizeSettings`、`wordId`、`request()` | 旧配置键不得通过 spread 复活 |
 | `message-router.js` | 类型化消息路由器：注册表构造、重复类型即失败、`parse`+`handle` 两段派发 | 泛型实现，不认识任何具体消息；未知类型抛「未知请求。」 |
-| `message-protocol.js` | 消息协议唯一事实源：`MESSAGE_TYPES`（82 种）、`CONTENT_ALLOWED_TYPES`、纯载荷解析器与自 `background.js` 下沉的 `validatePatch`（设置补丁校验）、`settingsPatchEffects`（STATE_PATCH 副作用计划）、`parseAssistRequest`/`parsePassageRequestRef`（请求身份）、`onDemandSuggestionDecision`（按需建议判定）、`text`/`domain`/`customDetectionService` | 只依赖 `shared.js`、`domain-routing.js`、`api-providers.mjs`、`gloss.mjs` 等领域/协议模块；新增类型必须同步注册表与第 5 节 |
+| `message-protocol.js` | 消息协议唯一事实源：`MESSAGE_TYPES`（83 种）、`CONTENT_ALLOWED_TYPES`、纯载荷解析器与自 `background.js` 下沉的 `validatePatch`（设置补丁校验）、`settingsPatchEffects`（STATE_PATCH 副作用计划）、`parseAssistRequest`/`parsePassageRequestRef`（请求身份）、`onDemandSuggestionDecision`（按需建议判定）、`text`/`domain`/`customDetectionService` | 只依赖 `shared.js`、`domain-routing.js`、`api-providers.mjs`、`gloss.mjs` 等领域/协议模块；新增类型必须同步注册表与第 5 节 |
 | `api-providers.mjs` / `api-transport.mjs` | 33 家服务商目录、8 种协议适配、结构化输出能力探测、模型列表、各协议 usage 抽取（`onUsage` 回调） | HTTPS only（本机回环除外）；同源重定向禁止；密钥不进内容脚本 |
 | `thinking-levels.mjs` | 按「服务商 + 模型」声明思考档位（官方档位名、默认档、请求参数），供设置页与请求层共用 | 只收录官方文档写明的模型；未收录模型返回 null，请求沿用关闭思考参数 |
 | `rate-window.mjs` | 按键计数的滑动时间窗限额 `createRateWindow({limit,windowMs})`（`take`/`forget`） | 纯函数领域模块；计数只在内存，SW 重启归零——只作防失控上限，不承担正确性 |
 | `work-lanes.mjs` | 后台批量工作的场景分道 `createWorkLanes({check,busy,waiterLimit})`（`run`/`prune`/`snapshot`）与按服务计的并发闸门 `createServiceGates()`（`acquire`/`release`，urgent 插队、名额直接交接） | 纯调度领域模块，不触碰 chrome；工作内容、过期校验与繁忙错误由 background 注入；状态只在内存，SW 回收后从零开始 |
 | `usage-stats.mjs` | 模型用量统计：调用事件规范化、按日/按服务×模型聚合（保留约 62 天、≤60 组合）、`summarizeUsage` UI 汇总 | 纯函数领域模块；只存计数与模型/服务标识，不存正文、密钥或网址；写串行化在 `background.js` |
+| `data-backup.mjs` | 备份格式与导入计划：`BACKUP_SETTING_KEYS`（随备份带走的设置白名单）/ `BACKUP_EXCLUDED_SETTING_KEYS`（模型服务一层）、`backupSettings`、`parseBackup`（新格式与 0.10 及更早的「导出词档案」文件）、`planWordImport` / `planSettingsImport`（合并 / 覆盖） | 纯函数领域模块，不触碰 chrome；设置逐项复用 `validatePatch` / `normalizeDomainRules` / `validateAutomation` / `validateVideo`；写入、配额、权限与广播在 `background.js`（见 9.4） |
 | `gloss.mjs` | 提示词、JSON Schema、响应校验/纠正（扩展与连接器共享） | `SUPPORT_POLICY_VERSION` 变更即使全部缓存失效 |
 | `sentence-groups.mjs` / `assistance-stream.mjs` / `personalization.mjs` | 解构协议与修复、流式进度解析、个性化策略机 | 共享文件被连接器安装副本引用，改动需双边同步 |
 | `audio-transcription.mjs` | 听写音频片段校验（仅 WebM/WAV 容器头、0.5–25 秒、≤512KB base64）、听写 JSON Schema 与时间戳校验（不倒序、不重叠、不越界） | 扩展后台与连接器共用；连接器只把通过校验的片段写盘交给 CLI |
@@ -187,7 +188,7 @@
 - 内容脚本仅可用白名单（`contentAllowed`，38 种，以 `CONTENT_ALLOWED_TYPES` 为准）：状态读取、分析、支持批次、解构、求助、翻译、历史信号、诊断回执、伴读猫位置等。
 - 数据变更类消息进入 `activeDataRequests` 集合，供清理时排空（`clearReadingData`）。
 
-### 5.2 消息分组（82 种，与 `MESSAGE_TYPES` 顺序一致）
+### 5.2 消息分组（83 种，与 `MESSAGE_TYPES` 顺序一致）
 | 分组 | 类型 |
 |---|---|
 | 状态与设置（9） | `STATE_GET` `STATE_PATCH` `AUTOMATION_GET` `AUTOMATION_PATCH` `PAGE_ACTIVITY_SET` `VIDEO_SETTINGS_PATCH` `PAGE_TRANSLATION_DISPLAY_SET` `FLOATING_PET_POSITION_SET` `OPEN_OPTIONS` |
@@ -197,7 +198,7 @@
 | 阅读解构（5） | `SENTENCE_GROUPS_GET` `SENTENCE_GROUPS_SET` `SENTENCE_GROUPS_DENSITY_SET` `SENTENCE_GROUPS_LINE_STYLE_SET` `SENTENCE_GROUPS_BATCH` |
 | 翻译与阅读器（11） | `EMERGENCY_BEGIN` `EMERGENCY_TRANSLATE` `EMERGENCY_CANCEL_REQUEST` `EMERGENCY_END` `PASSAGE_TRANSLATE` `VIDEO_CUE_TRANSLATE` `VIDEO_AUDIO_TRANSCRIBE` `LIVE_CHAT_TRANSLATE` `PAGE_SUMMARY` `READER_TRANSLATE` `READER_OPEN_ORIGINAL` |
 | 历史与个性化（17） | `HISTORY_GET` `HISTORY_CONFIG` `HISTORY_BEGIN` `HISTORY_TICK` `HISTORY_COMMIT` `HISTORY_ANNOTATION` `HISTORY_DELETE` `HISTORY_SUMMARY_EDIT` `HISTORY_CLEAR` `HISTORY_EXPORT` `HISTORY_RULE_SET` `PERSONALIZATION_GET` `PERSONALIZATION_ANALYZE` `PERSONALIZATION_APPLY` `PERSONALIZATION_DISMISS` `PERSONALIZATION_ROLLBACK` `PERSONALIZATION_RESET` |
-| 数据与诊断（16） | `READING_DATA_EXPORT` `MEMORY_CLEAR` `DIAGNOSTICS_GET` `DIAGNOSTICS_EXPORT` `DIAGNOSTICS_SET` `DIAGNOSTICS_CLEAR` `DIAGNOSTICS_RENDER` `USAGE_STATS_GET` `USAGE_STATS_CLEAR` `POPUP_INTENT_TAKE` `TAB_ERROR_TAKE` `PAGE_UI_INJECT` `ENSURE_PAGE_UI` `AUTO_BOOTSTRAP_CHECK` `YOUTUBE_CAPTIONS_BRIDGE` `YOUTUBE_CAPTION_FETCH` |
+| 数据与诊断（17） | `READING_DATA_EXPORT` `READING_DATA_IMPORT` `MEMORY_CLEAR` `DIAGNOSTICS_GET` `DIAGNOSTICS_EXPORT` `DIAGNOSTICS_SET` `DIAGNOSTICS_CLEAR` `DIAGNOSTICS_RENDER` `USAGE_STATS_GET` `USAGE_STATS_CLEAR` `POPUP_INTENT_TAKE` `TAB_ERROR_TAKE` `PAGE_UI_INJECT` `ENSURE_PAGE_UI` `AUTO_BOOTSTRAP_CHECK` `YOUTUBE_CAPTIONS_BRIDGE` `YOUTUBE_CAPTION_FETCH` |
 
 - `STATE_PATCH` 的校验、嵌套配置补全、服务引用检查与副作用计划均在 `mutate` 串行写入队列内按最新状态计算，避免并发请求覆盖字段或留下悬空服务引用。
 - 快捷键与右键菜单（开关阅读辅助、本页双语、解释选中内容）失败时，后台给该标签页挂红色「!」徽标、悬停提示写原因，并把原因记在 `storage.session` 的 `tabError:<tabId>`；弹窗经 `TAB_ERROR_TAKE`（仅扩展界面）取走并显示，同时撤掉徽标；标签页主框架跳转（`webNavigation.onCommitted` / `onHistoryStateUpdated`）或关闭时一并清除。
@@ -379,6 +380,13 @@
 - `meta`：个性化策略版本栈（pending/applied/dismissed/rolledBack/expired/invalidated，≤50 版）与手动规则（overrides）。
 - 迁移：v1→v2 建索引并把 contributions 灌入 receipts。
 
+### 9.4 备份文件（`READING_DATA_EXPORT` / `READING_DATA_IMPORT`，`data-backup.mjs`）
+- 格式：`{format:'roamcat-backup', formatVersion:1, exportedAt, extensionVersion, schemaVersion, productSchemaVersion, records, legacyRecords, supportUsage, onDemandSuggestionShownAt, settings, sentenceGroups, modelUsage}`；`records` 起的旧字段名与 0.10 及更早版本「导出词档案」的文件一致，那种文件（没有 `format`）照样可以导入，只含词档案。
+- 设置只带白名单 `BACKUP_SETTING_KEYS`（阅读偏好、术语表、网站规则、自动开启、视频字幕、伴读猫）；模型服务一层（`providerKind`、`subscriptionModel`、`apiServices`、`activeApiServiceId`、`apiRouting`、`mtServices`、`translationEngines`、`mtFallback`、`domainDetection`）连同其中的密钥永不导出，也不会被导入改动。单测要求白名单与排除清单恰好覆盖 `DEFAULT_SETTINGS` 的每一项，新增设置项必须明确归类。
+- 导入只在扩展页（可信来源）进行，先预览：后台在写入队列里按最新状态把「合并」「覆盖」两种结果都算出来、不写；正式导入时词档案、设置、解构外观与提示用量在同一次事务里写入（先删后写），之后作废支持缓存、会话与整页翻译、重新对账自动开启并广播。
+- 合并：本机已有的保留，备份里多出来的词追加；同一个词取最近活动（`lastSeen`/`requestedAt`/`knownAt`/义项时间）更晚的一份，换掉的词 `revision` 取两边较大值加一；术语、网站规则与自动开启网站只补新条目，其余设置不动。覆盖：词档案、术语表、网站规则、自动开启网站、阅读偏好、视频字幕设置与解构外观换成备份里的，备份里缺的项保持本机原样。内容没变的词沿用本机对象，不会被重写。
+- 校验：更新版本的备份（`formatVersion`/`schemaVersion`/`productSchemaVersion` 更高）拒绝；v5/v6 的词按当前字段集合核对类型、不截断内容，schema 1–4 走 `migrateSupportWord` 与本机升级同一套迁移；认不出的词与设置条目跳过并计数。超出上限（5000 词、1000 条术语、200 条网站规则、500 个自动开启网站）或本机空间不够时，这种方式不可选，另一种照常可用。网站访问权限没授予时只跳过自动开启网站。
+
 ---
 
 ## 10. 安全与隐私规范
@@ -389,7 +397,8 @@
 5. **请求元数据**：载荷不含页面 URL；遥测/诊断不含正文与密钥。
 6. **权限最小化**：`chrome.permissions.remove` 在服务/网站规则移除后回收；provider 与站点模式分离保护。
 7. **XSS 面**：扩展页面无内联脚本；`innerHTML` 仅用于静态模板或经 `escapeHtml` 的模型文本；Shadow DOM 隔离样式。
-8. **本机连接服务**：只监听回环地址；握手要 Host 为本机、Origin 在白名单，连上后双方凭安装时生成的配对令牌（只有当前系统用户读得到，经浏览器连接器交给扩展）做挑战—应答双向认证，扩展核对服务的证明通过前不发任何请求。令牌只当 HMAC 密钥，不上线、不进诊断（见 8.4）。
+8. **备份**：导出与导入都只在本机进行；备份不含模型服务与任何密钥（白名单导出），导入只接受扩展页来源、按保存时的同一套规则逐项校验，不会写入或改动本机的模型服务与密钥（见 9.4）。
+9. **本机连接服务**：只监听回环地址；握手要 Host 为本机、Origin 在白名单，连上后双方凭安装时生成的配对令牌（只有当前系统用户读得到，经浏览器连接器交给扩展）做挑战—应答双向认证，扩展核对服务的证明通过前不发任何请求。令牌只当 HMAC 密钥，不上线、不进诊断（见 8.4）。
 
 ---
 

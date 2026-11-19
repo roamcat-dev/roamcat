@@ -79,7 +79,7 @@ Xenova/all-MiniLM-L6-v2 runs page-topic classification on the device. It does no
 - There are no RoamCat servers and no analytics or telemetry. Reading history is off by default, opt-in per site and not collected on incognito pages.
 - API keys are stored only in chrome.storage.local on the device; they never reach content scripts, diagnostic logs or the connector. The extension does not use chrome.storage.sync, so nothing is synced to a server or browser account.
 - Page text leaves the device only when the user invokes a model feature, and goes directly to the provider the user configured. Local PDF/EPUB documents are parsed on the device.
-- Content scripts may send only 38 whitelisted message types out of 82 internal message types; all model output passes structured validation before it reaches the interface; there is no remote code execution.
+- Content scripts may send only 38 whitelisted message types out of 83 internal message types; all model output passes structured validation before it reaches the interface; there is no remote code execution.
 - Permissions requested (Manifest V3): activeTab (act on the current tab after a click, shortcut or context-menu action), scripting (load reading, translation, summary and companion UI when features are activated), storage (settings, credentials, word profiles, optional reading records), nativeMessaging (talk to the optional local connector), offscreen (host the offline topic model), contextMenus (right-click actions), tts (read words and sentences aloud with installed local English voices) and webNavigation (follow page and same-document navigation, and optionally open HTTP(S) PDFs in the built-in reader).
 - Host permissions: access to http and https pages is requested as a required permission so reading and translation work on any site the user chooses; it is not an optional permission. Only a lightweight bootstrap script runs on ordinary pages, and the heavier reading features load when activated. The Twitch chat script matches only https://www.twitch.tv/*.
 - Full details: https://github.com/roamcat-dev/roamcat/blob/main/roamcat-0.0.1/PRIVACY.md
@@ -156,7 +156,7 @@ Yes, through an optional local connector. It reuses the official CLIs you are al
 Yes. Pick the Ollama provider (default endpoint http://localhost:11434); it needs no API key, and page text then goes only to your own Ollama server. The bundled MiniLM model only classifies page topics offline — translation and explanations always need a model service you configure.
 
 ### What permissions does RoamCat ask for, and why?
-Eight Chrome permissions — activeTab, scripting, storage, nativeMessaging, offscreen, contextMenus, tts and webNavigation — plus access to http and https pages so it can read and translate whichever sites you choose. Content scripts may send only 38 of 82 internal message types, and API keys never reach content scripts. The privacy policy lists each permission and its reason.
+Eight Chrome permissions — activeTab, scripting, storage, nativeMessaging, offscreen, contextMenus, tts and webNavigation — plus access to http and https pages so it can read and translate whichever sites you choose. Content scripts may send only 38 of 83 internal message types, and API keys never reach content scripts. The privacy policy lists each permission and its reason.
 
 ### How do I install RoamCat?
 Download the latest extension zip from GitHub Releases and unzip it, open chrome://extensions, turn on Developer mode, choose Load unpacked and pick the extension folder inside. Or build from source with Node.js 22.13+ (npm ci, then npm run build) and load dist/extension.
@@ -192,6 +192,6 @@ RoamCat（随心阅）是免费开源（MPL-2.0）的 Chrome / Edge 浏览器扩
 - 两种模式：双语翻译按阅读位置在每段英文旁插入中文对照，可一键切换「双语 / 仅译文」；阅读辅助保留整页英文，只给随你进步而渐退的稀疏提示，按住 D 单击出查词卡片。
 - 还支持：PDF / EPUB 内置阅读器、YouTube 双语字幕（无字幕视频可手动云端听写）、默认关闭的 Twitch 直播聊天翻译、文章摘要、伴读猫。
 - 模型来源：33 家自备 API（8 种协议）、本地 Ollama，或经本机连接器复用已登录的 ChatGPT / Grok / Google 订阅，免 API Key；内置离线模型只做页面领域识别。
-- 隐私：没有自有服务器、不采集遥测；阅读记录默认关闭；内容脚本只能发送 82 种消息中的 38 种白名单类型。
+- 隐私：没有自有服务器、不采集遥测；阅读记录默认关闭；内容脚本只能发送 83 种消息中的 38 种白名单类型。
 - 安装：从 GitHub Releases 下载安装包，以开发者模式加载；Chrome Web Store / Edge Add-ons 上架进行中。需要桌面端 Chrome / Edge 125+，暂不支持 Firefox、Safari 与移动端。
 - 站点：https://roamcat-dev.github.io/roamcat/zh.html · 源码：https://github.com/roamcat-dev/roamcat

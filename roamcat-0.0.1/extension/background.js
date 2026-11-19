@@ -1,6 +1,6 @@
 /**
  * @file extension/background.js
- * 文件职责：Service Worker 总控——82 种消息的注册表派发、设置校验与迁移、API/三订阅链路编排、
+ * 文件职责：Service Worker 总控——83 种消息的注册表派发、设置校验与迁移、API/三订阅链路编排、
  *   缓存/并发/看门狗、订阅端口状态与诊断编排，是扩展侧所有业务的唯一入口。
  * 主要内容：messageHandlers 注册表（与 message-protocol.js MESSAGE_TYPES 一一对应）、STATE_PATCH 编排、
  *   SUPPORT_BATCH/ASSIST/解构/整页翻译/摘要装配、supportCache 等会话缓存、subscription 端口管理。
@@ -34,8 +34,10 @@ import {
   parseHistorySummaryEdit,
   parseAssistRequest,
   parsePassageRequestRef,
+  parseReadingDataImport,
   onDemandSuggestionDecision
 } from './message-protocol.js';
+import {BACKUP_FORMAT,BACKUP_FORMAT_VERSION,backupSettings,backupContents,parseBackup,planWordImport,planSettingsImport,IMPORT_MODES} from './data-backup.mjs';
 import {createMessageRouter} from './message-router.js';
 import {apiServiceOrigins,apiServiceReady,normalizeApiService,apiServiceKeys,apiKeyPoolPick,apiKeyPoolCool,getApiProvider} from './api-providers.mjs';
 import {listProviderModels,performProviderRequest,providerRequestTimeoutMs} from './api-transport.mjs';
@@ -139,7 +141,7 @@ function writeReadingSession(values,generation){
   const work=readingSessionWrites.then(async()=>{if(cleanupPending||generation!==providerGeneration)throw staleWork();try{await chrome.storage.session.set(values);}catch{/* 会话缓存写入失败（如配额）不应当中断阅读请求 */}});
   readingSessionWrites=work.catch(()=>{});return work;
 }
-const DATA_MUTATIONS=new Set([...HISTORY_MUTATIONS].filter(type=>type!=='PERSONALIZATION_ANALYZE').concat(['STATE_PATCH','AUTOMATION_PATCH','VIDEO_SETTINGS_PATCH','PAGE_TRANSLATION_DISPLAY_SET','FLOATING_PET_POSITION_SET','ASSIST_COMMIT','ENCOUNTER','INTERACT','READING_ACTIVITY','ON_DEMAND_SUGGESTION','USAGE_STATS_CLEAR']));
+const DATA_MUTATIONS=new Set([...HISTORY_MUTATIONS].filter(type=>type!=='PERSONALIZATION_ANALYZE').concat(['STATE_PATCH','AUTOMATION_PATCH','VIDEO_SETTINGS_PATCH','PAGE_TRANSLATION_DISPLAY_SET','FLOATING_PET_POSITION_SET','ASSIST_COMMIT','ENCOUNTER','INTERACT','READING_ACTIVITY','ON_DEMAND_SUGGESTION','USAGE_STATS_CLEAR','READING_DATA_IMPORT']));
 function assertDataAvailable(){if(cleanupPending)throw Object.assign(new Error(M('本机数据正在清理或清理尚未完成，请重试清理。','Local data cleanup is in progress or incomplete; please retry cleanup.')),{code:'NOT_READY'});}
 const ready = (async () => {
   // setAccessLevel 仅存在于 Chrome 136+；旧版本上缺失时不能中断初始化（manifest 声明支持 125）。
@@ -2829,6 +2831,8 @@ async function clearReadingData(scope,recovering=false){
   catch(error){dataProblem=M('清理尚未完成，已暂停数据访问，请重试清理。','Cleanup is unfinished; data access is paused. Please retry cleanup.');throw error;}
   finally{cleanupFlight=null;}
 }
+// 导出备份（READING_DATA_EXPORT）：词档案原样导出，旧版导出文件里的字段名保持不变；设置只带白名单里的阅读偏好、
+// 术语表、网站规则与自动开启网站（data-backup.mjs），模型服务与任何密钥都不进文件。
 async function readingExport() {
   await ready;
   await usageStatsWrites.catch(() => {});
@@ -2840,6 +2844,9 @@ async function readingExport() {
       'legacyReadingArchive',
       'supportUsage',
       'onDemandSuggestionShownAt',
+      'settings',
+      SENTENCE_GROUPS_DENSITY_KEY,
+      SENTENCE_GROUPS_LINE_STYLE_KEY,
       USAGE_STATS_KEY
     ]),
     readWords(chrome.storage.local)
@@ -2848,14 +2855,129 @@ async function readingExport() {
   const exported = new Set(records.map(word => word.id));
   for (const word of Array.isArray(data.words) ? data.words : []) if (word?.id && !exported.has(word.id)) { exported.add(word.id); records.push(word); }
   return {
+    format: BACKUP_FORMAT,
+    formatVersion: BACKUP_FORMAT_VERSION,
+    exportedAt: new Date().toISOString(),
+    extensionVersion: chrome.runtime.getManifest?.()?.version || '',
     schemaVersion: data.wordSchemaVersion,
     productSchemaVersion: data.productSchemaVersion,
     records,
     legacyRecords: data.legacyReadingArchive || [],
     supportUsage: data.supportUsage || [],
     onDemandSuggestionShownAt: data.onDemandSuggestionShownAt || 0,
+    settings: backupSettings(data.settings),
+    sentenceGroups: {
+      density: ['coarse', 'medium', 'fine'].includes(data[SENTENCE_GROUPS_DENSITY_KEY]) ? data[SENTENCE_GROUPS_DENSITY_KEY] : 'medium',
+      lineStyle: ['solid', 'dashed', 'dotted', 'wavy'].includes(data[SENTENCE_GROUPS_LINE_STYLE_KEY]) ? data[SENTENCE_GROUPS_LINE_STYLE_KEY] : 'solid'
+    },
     modelUsage: summarizeUsage(data[USAGE_STATS_KEY])
   };
+}
+// 导入备份（READING_DATA_IMPORT，仅扩展页）。计划在写入队列里按排队后的最新状态计算：只预览时把合并与覆盖两种结果都算出来、不写；
+// 正式导入时词档案、设置、解构偏好与提示用量在同一个事务里一次写入（先删后写，存储里不会新旧两份并存）。
+// 之后的刷新是 STATE_PATCH / AUTOMATION_PATCH / VIDEO_SETTINGS_PATCH 后续处理的并集：词档案整份换过，缓存与会话一律作废。
+function importPlan(state, backup, mode) {
+  const replace = mode === 'replace';
+  return {
+    mode,
+    words: planWordImport(state.words, backup.words, mode),
+    settings: backup.settings ? planSettingsImport(state.settings, backup.settings, mode) : null,
+    sentenceGroups: replace ? backup.sentenceGroups : null,
+    supportUsage: replace ? backup.supportUsage : null,
+    onDemandSuggestionShownAt: replace ? backup.onDemandSuggestionShownAt : null
+  };
+}
+function importSummary(plan) {
+  const stats = plan.settings?.stats || {};
+  return {mode: plan.mode, words: plan.words.stats, terms: stats.terms || null, rules: stats.rules || null, sites: stats.sites || null, preferences: stats.preferences || null};
+}
+// 按增量估算导入后的用量：换掉的词按新旧差值算，删掉的词扣掉，与 saveRecord 一样留出 256KB 余量。
+async function assertImportFits(priorWords, nextWords) {
+  const bytes = value => new TextEncoder().encode(JSON.stringify(value)).length;
+  const size = word => bytes(word) + word.id.length + 5;
+  const prior = new Map(priorWords.map(word => [word.id, word])), next = new Set();
+  let delta = 0;
+  for (const word of nextWords) {
+    next.add(word.id);
+    const old = prior.get(word.id);
+    if (old !== word) delta += size(word) - (old ? size(old) : 0);
+  }
+  for (const [id, old] of prior) if (!next.has(id)) delta -= size(old);
+  delta += bytes([...next]) - bytes([...prior.keys()]);
+  if (delta <= 0) return;
+  const used = chrome.storage.local.getBytesInUse ? await chrome.storage.local.getBytesInUse(null) : bytes(await chrome.storage.local.get(null));
+  if (used + delta > (chrome.storage.local.QUOTA_BYTES || 10485760) - 262144)
+    throw Object.assign(new Error(M('本机存储空间不够导入这份备份，可先导出当前数据并清理后再导入。', 'There is not enough local storage for this backup; export your current data and clear it, then import.')), {importLimit: true});
+}
+async function readingDataImport(message) {
+  const backup = parseBackup(message.text);
+  const contents = backupContents(backup);
+  if (message.dryRun) {
+    const modes = await mutate(async state => {
+      const result = {};
+      for (const mode of IMPORT_MODES) {
+        try {
+          const plan = importPlan(state, backup, mode);
+          await assertImportFits(state.words, plan.words.words);
+          result[mode] = importSummary(plan);
+        } catch (error) {
+          if (!error?.importLimit) throw error;
+          result[mode] = {mode, error: error.message};
+        }
+      }
+      return result;
+    }, false, true);
+    return {dryRun: true, meta: backup.meta, contents, ...modes};
+  }
+  let before, after, plan, sitesSkipped = '';
+  const summary = await mutate(async state => {
+    plan = importPlan(state, backup, message.mode);
+    await assertImportFits(state.words, plan.words.words);
+    before = state.settings;
+    let automation = plan.settings?.automation || null;
+    if (automation) {
+      // 网站访问权限没授予时，自动开启网站这一组不导入，其余照常导入。
+      try { await verifyAutomationPermissions(state.settings.automation, automation); }
+      catch (error) { sitesSkipped = error.message; automation = null; }
+    }
+    state.words = plan.words.words;
+    // 设置没有要改的就不换对象：写入事务按引用判断，换了对象就会把同样的设置再写一遍。
+    if (plan.settings && (Object.keys(plan.settings.patch).length || automation || plan.settings.video)) {
+      state.settings = {
+        ...state.settings,
+        ...plan.settings.patch,
+        ...(automation ? {automation} : {}),
+        ...(plan.settings.video ? {video: plan.settings.video} : {})
+      };
+    }
+    if (plan.sentenceGroups?.density) state[SENTENCE_GROUPS_DENSITY_KEY] = plan.sentenceGroups.density;
+    if (plan.sentenceGroups?.lineStyle) state[SENTENCE_GROUPS_LINE_STYLE_KEY] = plan.sentenceGroups.lineStyle;
+    if (plan.supportUsage) state.supportUsage = plan.supportUsage;
+    if (plan.onDemandSuggestionShownAt !== null) state.onDemandSuggestionShownAt = plan.onDemandSuggestionShownAt;
+    state.supportDataGeneration++;
+    after = state.settings;
+    return importSummary(plan);
+  }, false, true);
+  await clearProviderState();
+  invalidateClassification();
+  domainCache.clear();
+  await chrome.storage.session.remove('domainCache').catch(() => {});
+  await clearSupportSessions();
+  await readingHistory.invalidate();
+  const differs = key => JSON.stringify(before[key]) !== JSON.stringify(after[key]);
+  if (differs('automation')) {
+    scheduleUnusedAutomationPermissions(before.automation, after.automation);
+    if (before.automation.sentenceGroupsAllSites && !after.automation.sentenceGroupsAllSites) await clearAutomaticSentenceModes();
+  }
+  if (differs('automation') || (before.floatingPet?.enabled !== false) !== (after.floatingPet?.enabled !== false)) await reconcileAutomation();
+  await broadcast();
+  if (differs('readingStyle')) await broadcastReadingStyle(after.readingStyle);
+  if (differs('helpLanguage')) await broadcastHelpLanguage(after.helpLanguage);
+  if (differs('video')) await broadcastVideoSettings(after.video);
+  const tabs = plan.sentenceGroups ? await chrome.tabs.query({}) : [];
+  if (plan.sentenceGroups?.density) await Promise.allSettled(tabs.map(tab => chrome.tabs.sendMessage(tab.id, {type: 'SS_SET_SENTENCE_DENSITY', density: plan.sentenceGroups.density}, {frameId: 0})));
+  if (plan.sentenceGroups?.lineStyle) await Promise.allSettled(tabs.map(tab => chrome.tabs.sendMessage(tab.id, {type: 'SS_SET_SENTENCE_LINE_STYLE', lineStyle: plan.sentenceGroups.lineStyle}, {frameId: 0})));
+  return {imported: true, ...summary, ...(sitesSkipped ? {sitesSkipped} : {})};
 }
 async function readingActivity(message, sender) {
   if (!['eligible', 'hint', 'error'].includes(message.event))
@@ -3683,6 +3805,14 @@ const messageHandlers = [
   { type: 'INTERACT', handle: (message, { sender, trusted }) => interactOffered(message, sender) },
   { type: 'READING_ACTIVITY', handle: (message, { sender, trusted }) => readingActivity(message, sender) },
   { type: 'READING_DATA_EXPORT', handle: (message, { sender, trusted }) => readingExport() },
+  {
+    type: 'READING_DATA_IMPORT',
+    parse: parseReadingDataImport,
+    handle: (message, { sender, trusted }) => {
+      if (!trusted) throw new Error(M('导入备份只能在扩展设置中进行。', 'Backups can only be imported from the extension settings.'));
+      return readingDataImport(message);
+    }
+  },
   {
     type: 'ON_DEMAND_SUGGESTION',
     handle: (message, { sender, trusted }) =>

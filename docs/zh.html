@@ -145,7 +145,7 @@
         { "@type": "Question", "name": "可以用哪些模型？", "acceptedAnswer": { "@type": "Answer", "text": "33 家自备 API、8 种协议——OpenAI、Anthropic、Gemini、DeepSeek、Grok、OpenRouter、Groq、Mistral、Ollama、Azure OpenAI、Amazon Bedrock、阿里云百炼、火山引擎、Kimi、阶跃星辰等，也支持自定义 OpenAI 兼容接口；另有内置本地模型做页面领域识别，或经本机连接器复用已登录的 ChatGPT / Grok / Antigravity CLI 订阅——免 API Key。" } },
         { "@type": "Question", "name": "没有 API Key，能用 ChatGPT / Grok / Google 订阅吗？", "acceptedAnswer": { "@type": "Answer", "text": "可以，通过可选的本机连接器。它复用你已登录的官方 CLI——Codex CLI（ChatGPT）、Grok CLI（SuperGrok / X Premium+）、Antigravity agy（Google AI Pro / Ultra）——经 Native Messaging 与本机 127.0.0.1 服务连接。需要 Node.js 20+ 并已安装对应 CLI；费用、额度与地区可用性由各服务商决定。" } },
         { "@type": "Question", "name": "能完全本地运行（Ollama）吗？", "acceptedAnswer": { "@type": "Answer", "text": "能。选择 Ollama 服务商（默认 http://localhost:11434），无需 API Key，页面文本只会发往你自己的 Ollama 服务。内置的 MiniLM 只在离线状态下做页面领域识别——翻译与解释始终需要你配置的模型服务。" } },
-        { "@type": "Question", "name": "RoamCat 申请哪些权限，为什么？", "acceptedAnswer": { "@type": "Answer", "text": "共 8 项 Chrome 权限——activeTab、scripting、storage、nativeMessaging、offscreen、contextMenus、tts、webNavigation——以及 http / https 站点访问（用于在你选择的任意网站上阅读与翻译）。内容脚本只能发送 82 种内部消息中的 38 种；API Key 不会进入内容脚本。隐私政策逐项列出了每项权限及理由。" } },
+        { "@type": "Question", "name": "RoamCat 申请哪些权限，为什么？", "acceptedAnswer": { "@type": "Answer", "text": "共 8 项 Chrome 权限——activeTab、scripting、storage、nativeMessaging、offscreen、contextMenus、tts、webNavigation——以及 http / https 站点访问（用于在你选择的任意网站上阅读与翻译）。内容脚本只能发送 83 种内部消息中的 38 种；API Key 不会进入内容脚本。隐私政策逐项列出了每项权限及理由。" } },
         { "@type": "Question", "name": "怎么安装 RoamCat？", "acceptedAnswer": { "@type": "Answer", "text": "从 GitHub Releases 下载最新安装包并解压，打开 chrome://extensions，开启开发者模式，选择「加载已解压的扩展」并指向里面的 extension 文件夹；也可用 Node.js 22.13+ 从源码构建（npm ci、npm run build）后加载 dist/extension。" } }
       ]
     }
@@ -365,7 +365,7 @@ tbody th{background:none;font-size:inherit;letter-spacing:0;font-weight:600;whit
   <ul class="tight">
     <li>不经营服务器、不采集遥测；阅读记录默认关闭且按站授权；无痕页面不采集。</li>
     <li>API Key 只存 <code>chrome.storage.local</code>——不进内容脚本、诊断日志或连接器。</li>
-    <li>内容脚本仅可用 82 种消息中的 38 种白名单类型；模型输出全部经结构化校验才进入 UI。</li>
+    <li>内容脚本仅可用 83 种消息中的 38 种白名单类型；模型输出全部经结构化校验才进入 UI。</li>
     <li>自定义 API 地址强制 HTTPS（仅本机回环允许 HTTP）；无远端代码执行。</li>
   </ul>
 </section>
@@ -403,7 +403,7 @@ tbody th{background:none;font-size:inherit;letter-spacing:0;font-weight:600;whit
   <details><summary>可以用哪些模型？</summary><p>33 家自备 API、8 种协议——OpenAI、Anthropic、Gemini、DeepSeek、Grok、OpenRouter、Groq、Mistral、Ollama、Azure OpenAI、Amazon Bedrock、阿里云百炼、火山引擎、Kimi、阶跃星辰等，也支持自定义 OpenAI 兼容接口；另有内置本地模型做页面领域识别，或经本机连接器复用已登录的 ChatGPT / Grok / Antigravity CLI 订阅——免 API Key。</p></details>
   <details><summary>没有 API Key，能用 ChatGPT / Grok / Google 订阅吗？</summary><p>可以，通过可选的本机连接器。它复用你已登录的官方 CLI——Codex CLI（ChatGPT）、Grok CLI（SuperGrok / X Premium+）、Antigravity <code>agy</code>（Google AI Pro / Ultra）——经 Native Messaging 与本机 <code>127.0.0.1</code> 服务连接。需要 Node.js 20+ 并已安装对应 CLI；费用、额度与地区可用性由各服务商决定。</p></details>
   <details><summary>能完全本地运行（Ollama）吗？</summary><p>能。选择 Ollama 服务商（默认 <code>http://localhost:11434</code>），无需 API Key，页面文本只会发往你自己的 Ollama 服务。内置的 MiniLM 只在离线状态下做页面领域识别——翻译与解释始终需要你配置的模型服务。</p></details>
-  <details><summary>RoamCat 申请哪些权限，为什么？</summary><p>共 8 项 Chrome 权限——<code>activeTab</code>、<code>scripting</code>、<code>storage</code>、<code>nativeMessaging</code>、<code>offscreen</code>、<code>contextMenus</code>、<code>tts</code>、<code>webNavigation</code>——以及 http / https 站点访问（用于在你选择的任意网站上阅读与翻译）。内容脚本只能发送 82 种内部消息中的 38 种；API Key 不会进入内容脚本。<a href="https://github.com/roamcat-dev/roamcat/blob/main/roamcat-0.0.1/PRIVACY.md">隐私政策</a>逐项列出了每项权限及理由。</p></details>
+  <details><summary>RoamCat 申请哪些权限，为什么？</summary><p>共 8 项 Chrome 权限——<code>activeTab</code>、<code>scripting</code>、<code>storage</code>、<code>nativeMessaging</code>、<code>offscreen</code>、<code>contextMenus</code>、<code>tts</code>、<code>webNavigation</code>——以及 http / https 站点访问（用于在你选择的任意网站上阅读与翻译）。内容脚本只能发送 83 种内部消息中的 38 种；API Key 不会进入内容脚本。<a href="https://github.com/roamcat-dev/roamcat/blob/main/roamcat-0.0.1/PRIVACY.md">隐私政策</a>逐项列出了每项权限及理由。</p></details>
   <details><summary>怎么安装 RoamCat？</summary><p>从 GitHub Releases 下载最新安装包并解压，打开 <code>chrome://extensions</code>，开启开发者模式，选择「加载已解压的扩展」并指向里面的 <code>extension</code> 文件夹；也可用 Node.js 22.13+ 从源码构建（<code>npm ci</code>、<code>npm run build</code>）后加载 <code>dist/extension</code>。</p></details>
 </section>
 
