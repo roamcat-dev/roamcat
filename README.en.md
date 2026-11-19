@@ -126,7 +126,9 @@ Failed passages retry on a graded backoff (2.5s → 6s → 14s, classified by er
 
 Requires **Chrome or Edge 125+**.
 
-**Option A — Release package.** Download `roamcat-0.10.1-extension.zip` from [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) and unzip it. Open `chrome://extensions` (or `edge://extensions`), turn on **Developer mode**, choose **Load unpacked** and pick the unzipped **`roamcat-0.10.1/extension`** folder. For the subscription connector, run `node roamcat-0.10.1/connector/install.mjs` from the directory containing `roamcat-0.10.1/` (Node.js 20+); it works out the extension ID from that folder, so rerun it if you move the folder.
+**Option A — Release package.** Download `roamcat-0.10.1-extension.zip` from [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) and unzip it. Open `chrome://extensions` (or `edge://extensions`), turn on **Developer mode**, choose **Load unpacked** and pick the unzipped **`roamcat/extension`** folder. For the subscription connector, run `node roamcat/connector/install.mjs` from the directory containing `roamcat/` (Node.js 20+); it works out the extension ID from that folder, so rerun it if you move the folder.
+
+**Upgrading a Release package**: unzip the new package into the same place so it replaces the files in the `roamcat` folder, then click Reload on the extensions page. The folder path stays the same, so the extension ID — and with it your word profile and settings — stays too; rerun the install command above if you use the connector. Coming from an older package whose folder name carries a version (for example `roamcat-0.10.0/`), copy the files from the new `roamcat/` into that old folder. If you have already loaded the new folder, export your word profile from the old extension (Settings → Data & privacy) and use Import backup in the new one — older exports carry only the word profile, so set your reading preferences again.
 
 **Option B — build from source** (Node.js 22.13+; Node 24 verified):
 
@@ -159,9 +161,9 @@ The extension and the service verify each other with a **pairing token**. Every 
 - Keys never reach content scripts, diagnostic logs or the connector; content scripts may send only **38 whitelisted message types** out of 83.
 - All model output passes structured validation (`gloss.mjs`) before reaching the UI; custom API endpoints must be HTTPS (loopback excepted).
 - Page text leaves your device only when you invoke a model feature, and goes straight to the provider you configured. Full details in the [privacy policy](roamcat-0.0.1/PRIVACY.md).
+- Your word profile, glossary, site rules and reading preferences can be exported as a backup file under Settings → Data & privacy and imported again (merge or replace) after moving to a new computer or reinstalling; backups never include model services or any keys.
 
 ## ⚖️ How RoamCat compares
-- Your word profile, glossary, site rules and reading preferences can be exported as a backup file under Settings → Data & privacy and imported again (merge or replace) after moving to a new computer or reinstalling; backups never include model services or any keys.
 
 An honest look next to tools you may already know — RoamCat is not trying to be everything for everyone:
 

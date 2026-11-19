@@ -126,7 +126,9 @@
 
 需要 **Chrome 或 Edge 125+**。
 
-**方式 A：Release 安装包。** 从 [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) 下载 `roamcat-0.10.1-extension.zip` 并解压。打开 `chrome://extensions`（或 `edge://extensions`），开启**开发者模式**，点**加载已解压的扩展**，选择解压出的 **`roamcat-0.10.1/extension`** 文件夹。要用订阅连接器，在包含 `roamcat-0.10.1/` 的目录里运行 `node roamcat-0.10.1/connector/install.mjs`（需要 Node.js 20+）；它会按这个文件夹算出扩展 ID，移动文件夹后要重新运行。
+**方式 A：Release 安装包。** 从 [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) 下载 `roamcat-0.10.1-extension.zip` 并解压。打开 `chrome://extensions`（或 `edge://extensions`），开启**开发者模式**，点**加载已解压的扩展**，选择解压出的 **`roamcat/extension`** 文件夹。要用订阅连接器，在包含 `roamcat/` 的目录里运行 `node roamcat/connector/install.mjs`（需要 Node.js 20+）；它会按这个文件夹算出扩展 ID，移动文件夹后要重新运行。
+
+**升级 Release 安装包**：把新版安装包解压到原来的位置、覆盖 `roamcat` 文件夹里的同名文件，再到扩展管理页点「重新加载」。文件夹位置不变，扩展 ID 就不变，词档案和设置都还在；用订阅连接器的话再运行一次上面的安装命令。从文件夹名带版本号的旧安装包（例如 `roamcat-0.10.0/`）升级时，把新版 `roamcat/` 里的文件复制进原来的文件夹即可；已经加载了新文件夹的，在旧扩展的设置 → 数据与隐私里导出词档案，再在新扩展里「导入备份」（旧版导出的只有词档案，阅读偏好要重新调一下）。
 
 **方式 B：从源码构建**（需要 Node.js 22.13+；Node 24 已验证）：
 
@@ -159,9 +161,9 @@ node roamcat-0.0.1/connector/install.mjs --extension-id afpeggkplomdjjiemgajjgca
 - 密钥不进内容脚本、诊断日志或连接器；内容脚本只能使用 83 种消息中的 **38 种白名单类型**。
 - 模型输出全部经结构化校验（`gloss.mjs`）才进入界面；自定义 API 地址强制 HTTPS（仅本机回环允许 HTTP）。
 - 页面文本只在你主动调用模型功能时离开本机，直达你配置的服务商。完整说明见[隐私政策](roamcat-0.0.1/PRIVACY.md)。
+- 词档案、术语表、网站规则和阅读偏好可在设置 → 数据与隐私导出成备份文件，换电脑或重装后再导入（合并或覆盖）；备份不含模型服务和任何密钥。
 
 ## ⚖️ 与同类工具的对比
-- 词档案、术语表、网站规则和阅读偏好可在设置 → 数据与隐私导出成备份文件，换电脑或重装后再导入（合并或覆盖）；备份不含模型服务和任何密钥。
 
 诚实的定位说明——RoamCat 不打算在所有人手里替代谁：
 

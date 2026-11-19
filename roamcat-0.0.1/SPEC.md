@@ -454,9 +454,9 @@ MV3 下改代码必须重载扩展：service worker 变更需重载扩展本身�
 
 ## 13. 构建与发布规范
 - 扩展本体以构建产物为准：`npm run build` → `dist/extension/`（源层拷贝 − `REPLACED_BY_BUILD` + Vite 页面产物 + 变换后的 manifest；dev 模式注入 `build/extension-key.json` 的固定 key，`npm run build:release` 为无 key 的 minify 产物）。产物门禁 `npm run verify:build`：字节比对 + 浏览器（默认 ego lite）实际加载冒烟。
-- Release 包只含 `extension/`（构建产物重命名）、`connector/`、`README.md`、`LICENSE`、`NOTICE.txt`（白名单制；本文 SPEC.md 不随包发布）。
+- Release 包只含 `extension/`（构建产物重命名）、`connector/`、`README.md`、`LICENSE`、`NOTICE.txt`（白名单制；本文 SPEC.md 不随包发布）。包内外层目录固定为 `roamcat/`（`tools/package-release.mjs` 的 `RELEASE_FOLDER`），只有安装包文件名带版本号。
 - 发布前要求：干净且已提交的 HEAD；依次运行 `npm run build:release` 与 `node tools/package-release.mjs`，生成 `dist/release/roamcat-<版本>-extension.zip` + `SHA256SUMS`。
-- 升级约束：保持解压目录不变（未打包扩展 ID 与路径相关；使用 dev 构建时 ID 由 `build/extension-key.json` 固定）；连接器随扩展一起更新并重跑安装程序。
+- 升级约束：新版解压覆盖到同一位置的 `roamcat/`，目录路径不变（未打包扩展 ID 由路径算出，换目录就换了 ID，本机数据留在旧 ID 名下，只能经「导出备份 / 导入备份」搬过去，见 9.4；使用 dev 构建时 ID 由 `build/extension-key.json` 固定）；连接器随扩展一起更新并重跑安装程序。
 - 上架准备（尚未提交）：权限理由、隐私政策、1280×800 截图、ZIP 排除开发产物。
 
 ---

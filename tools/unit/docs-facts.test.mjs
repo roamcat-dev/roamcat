@@ -151,6 +151,22 @@ test('文档里的版本号与 manifest.json / package.json 一致', () => {
   }
 });
 
+// 安装包外层目录不带版本号，升级时原位覆盖、扩展 ID 不变；说明里写错目录名，照着做的人会加载出一个新扩展、看不到原来的数据。
+test('安装说明里的 Release 目录名与 package-release.mjs 一致，不再写带版本号的文件夹', () => {
+  const folder = /const RELEASE_FOLDER = '([^']+)';/u.exec(read('tools/package-release.mjs'))?.[1];
+  assert.ok(folder, 'tools/package-release.mjs 里找不到 RELEASE_FOLDER');
+  for (const file of ['README.md', 'README.en.md']) {
+    const text = read(file);
+    assert.ok(text.includes(`\`${folder}/extension\``), `${file} 应写明加载 ${folder}/extension`);
+    assert.ok(text.includes(`node ${folder}/connector/install.mjs`), `${file} 的连接器安装命令应使用 ${folder}/`);
+    // roamcat-0.0.1/ 是仓库里的源码目录名，不是安装包目录。
+    assert.doesNotMatch(text, /roamcat-(?!0\.0\.1\/)\d+\.\d+\.\d+\/(?:extension|connector)/u, `${file} 还写着带版本号的安装包目录`);
+  }
+  const product = read('roamcat-0.0.1/README.md');
+  assert.ok(product.includes(`\`${folder}/\``), 'roamcat-0.0.1/README.md 应写明解压出的目录');
+  assert.doesNotMatch(product, /roamcat-<版本>\//u, 'roamcat-0.0.1/README.md 还写着带版本号的安装包目录');
+});
+
 test('文档里的 Chrome / Edge 最低版本与 manifest 一致', () => {
   const minimum = Number(JSON.parse(read('roamcat-0.0.1/extension/manifest.json')).minimum_chrome_version);
   for (const file of ['README.md', 'README.en.md', 'docs/index.html', 'docs/zh.html', 'docs/llms.txt']) {

@@ -92,6 +92,8 @@ Requires desktop Chrome or Edge 125+.
 2. Open chrome://extensions (or edge://extensions), turn on Developer mode, choose Load unpacked and pick the extension folder inside the unzipped package.
 3. Click the toolbar icon on an English page, or press Alt+Shift+T for bilingual translation, and configure a model source in Settings.
 
+To upgrade, unzip the new package into the same place so it replaces the files in the roamcat folder, then click Reload on chrome://extensions. The folder path stays the same, so the extension ID, word profile and settings stay too. Unpacked extensions get their ID from the folder path, so loading a copy from another folder starts empty; in that case export a backup from the old copy (Settings → Data & privacy) and import it in the new one.
+
 To build from source instead, use Node.js 22.13+ (Node 24 is verified): clone the repository, run npm ci and then npm run build, and load dist/extension. The optional subscription connector is installed with the connector/install.mjs script from the release package or the repository (Node.js 20+).
 
 ## How RoamCat compares
