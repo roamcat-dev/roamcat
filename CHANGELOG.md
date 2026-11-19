@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-18
+
 ### 改进
 - 开发与测试：新增 `verify:storage` 门禁并纳入全套检查：重载扩展让真实后台冷启动，验证旧版词数组迁成每词一键（含迁到一半接着搬）、改一个词只写这一条、清空浏览历史保留词档案、清空阅读记录删净残留，以及更高数据版本拒绝运行。
 
@@ -372,7 +374,8 @@ Twitch 直播聊天实时翻译；本机常驻连接服务改为配对令牌认�
 - `host_permissions` 仍为宽泛的 `http(s)://*/*`，计划改为 `optional_host_permissions` 按需申请。
 - 未上架商店；扩展仅支持开发者模式加载（直接加载 `roamcat-0.0.1/extension` 时 ID 与目录路径绑定；`npm run build` 产物 ID 固定）。
 
-[Unreleased]: https://github.com/roamcat-dev/roamcat/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/roamcat-dev/roamcat/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.10.1
 [0.10.0]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.10.0
 [0.9.1]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.9.1
 [0.9.0]: https://github.com/roamcat-dev/roamcat/releases/tag/v0.9.0
