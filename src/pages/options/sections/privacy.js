@@ -1,8 +1,9 @@
 /**
  * @file src/pages/options/sections/privacy.js
- * 文件职责：设置页「数据与隐私」分区模板——词档案 / 阅读与提示数据 / 权限与彻底清理三组。
+ * 文件职责：设置页「数据与隐私」分区模板——词档案与备份 / 阅读与提示数据 / 权限与彻底清理三组。
  * 主要内容：无绑定静态模板（动态内容由 options-controller.js 与 history.js 命令式填充），
  *   每个操作占一行：左侧说明影响范围、右侧按钮；清空类操作由控制器二次确认。
+ *   导入备份选好文件后展开预览面板（备份内容 + 合并 / 覆盖分段按钮 + 该方式的影响说明），确认后才写入。
  * 模块边界：纯展示模板。
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -12,6 +13,7 @@
  */
 import {html} from 'lit';
 import {t} from '../../../i18n-runtime.js';
+import {segmentControl} from './parts.js';
 
 export const privacySection = html`
 <section id="privacy" class="settings-section data-section" aria-labelledby="privacy-heading" hidden="">
@@ -27,6 +29,16 @@ export const privacySection = html`
           <div class="opt-row">
             <div class="opt-row-text"><span class="opt-row-label">${t('sec.privacy.export')}</span><p class="opt-row-desc">${t('sec.privacy.exportDesc')}</p><span id="data-result" class="inline-message" aria-live="polite"></span></div>
             <div class="opt-row-control"><button id="export-data" class="secondary-button" type="button">${t('sec.privacy.exportBtn')}</button></div>
+          </div>
+          <div class="opt-row">
+            <div class="opt-row-text"><span class="opt-row-label">${t('sec.privacy.import')}</span><p class="opt-row-desc">${t('sec.privacy.importDesc')}</p><span id="import-result" class="inline-message" aria-live="polite"></span></div>
+            <div class="opt-row-control"><button id="import-data" class="secondary-button" type="button">${t('sec.privacy.importBtn')}</button><input id="import-file" type="file" accept=".json,application/json" hidden></div>
+          </div>
+          <div id="import-panel" class="opt-row is-block import-panel" hidden>
+            <p id="import-summary" class="import-summary"></p>
+            <div class="import-mode"><span id="import-mode-label" class="import-mode-title">${t('sec.privacy.importMode')}</span>${segmentControl('import-mode', 'import-mode-label', [['merge', t('sec.privacy.importMerge')], ['replace', t('sec.privacy.importReplace')]])}</div>
+            <p id="import-mode-desc" class="opt-row-desc" aria-live="polite"></p>
+            <div class="import-actions"><button id="import-confirm" class="primary-action" type="button">${t('sec.privacy.importConfirm')}</button><button id="import-cancel" class="secondary-button" type="button">${t('common.cancel')}</button></div>
           </div>
         </div>
       </div>

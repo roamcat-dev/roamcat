@@ -327,6 +327,13 @@ body[data-group="reading"] .now-status {
 /* 整行内容（预览、列表、表单）上下排，不分左右 */
 .opt-row.is-block { flex-direction: column; align-items: stretch; gap: var(--rc-space-3); }
 .opt-row.is-info { min-height: 0; }
+/* 导入备份的预览面板：备份内容一句、合并 / 覆盖分段按钮、所选方式的影响说明与确认按钮，上下排 */
+.import-panel .import-summary { margin: 0; color: var(--rc-ink-secondary); font-size: var(--fs-2); line-height: var(--rc-leading-support); overflow-wrap: anywhere; }
+.import-panel .import-mode { display: flex; flex-wrap: wrap; align-items: center; gap: var(--rc-space-2) var(--rc-space-3); }
+.import-panel .import-mode-title { color: var(--rc-ink); font-size: var(--fs-3); font-weight: var(--rc-weight-medium); line-height: var(--rc-leading-support); }
+.import-panel .choice-card-item:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+.import-panel > .opt-row-desc { margin: 0; }
+.import-panel .import-actions { display: flex; flex-wrap: wrap; gap: var(--rc-space-2); }
 .opt-row-text { flex: 1 1 auto; min-width: 0; }
 .opt-row-label { display: block; margin: 0; color: var(--rc-ink); font-size: var(--fs-3); font-weight: var(--rc-weight-medium); line-height: var(--rc-leading-support); }
 /* 说明始终完整显示、自然换行：不做单行截断后悬停展开（鼠标划过时整列跳动，触屏也展开不了）。 */

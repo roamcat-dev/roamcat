@@ -6,7 +6,7 @@
  *   （网页上下文可用的类型子集）、text/domain 校验器、validatePatch 设置补丁校验、
  *   settingsPatchEffects 副作用计划推导（含机器翻译设置变更信号），以及 parseDomainTest / parseFloatingPetPatch /
  *   parsePopupIntentTake / parsePageTranslationDisplay / parseAnalyze / parseHistoryRuleSet / parseHistoryRecordRef /
- *   parseHistorySummaryEdit 载荷解析器。
+ *   parseHistorySummaryEdit / parseReadingDataImport 载荷解析器（备份正文上限 MAX_BACKUP_TEXT）。
  * 模块边界：只依赖 shared.js、domain-routing.js、api-providers.mjs 等领域模块，不访问 chrome、
  *   不发起请求、不读取配置；新增消息类型必须同步 MESSAGE_TYPES、background.js 注册表与
  *   SPEC.md 第 5 节，由 tools/unit/message-router.test.mjs 的源码契约测试强制一致。
@@ -45,7 +45,7 @@ export const MESSAGE_TYPES = Object.freeze([
   'STATE_PATCH', 'ANALYZE', 'SUPPORT_BATCH', 'SENTENCE_GROUPS_BATCH', 'PREPARED_SUPPORT', 'PREPARED_ASSIST',
   'ASSIST_PREVIEW', 'EMERGENCY_BEGIN', 'PASSAGE_TRANSLATE', 'VIDEO_CUE_TRANSLATE', 'VIDEO_AUDIO_TRANSCRIBE', 'LIVE_CHAT_TRANSLATE', 'EMERGENCY_TRANSLATE', 'EMERGENCY_CANCEL_REQUEST',
   'EMERGENCY_END', 'ASSIST', 'ASSIST_COMMIT', 'PROVIDER_TEST', 'MT_TEST', 'ENCOUNTER', 'INTERACT', 'READING_ACTIVITY',
-  'READING_DATA_EXPORT', 'ON_DEMAND_SUGGESTION', 'MEMORY_CLEAR', 'PAGE_SUMMARY', 'OPEN_OPTIONS',
+  'READING_DATA_EXPORT', 'READING_DATA_IMPORT', 'ON_DEMAND_SUGGESTION', 'MEMORY_CLEAR', 'PAGE_SUMMARY', 'OPEN_OPTIONS',
   'READER_TRANSLATE', 'READER_OPEN_ORIGINAL',
 ]);
 
@@ -319,6 +319,21 @@ export function parseAssistRequest(message) {
   const {type: _type, articleKey = '', ...payload} = message ?? {};
   if (typeof articleKey !== 'string' || articleKey.length > 128) throw new Error(M('文章准备标识无效。','Invalid article-prep key.'));
   return {articleKey, command: normalizeAssistanceCommand(payload)};
+}
+
+/** 备份文件正文的长度上限（字符）：3000 个词的备份约 1.5MB，5000 个词也远不到这个量级。 */
+export const MAX_BACKUP_TEXT = 32 * 1024 * 1024;
+
+/**
+ * READING_DATA_IMPORT 载荷：备份文件正文（由后台解析与校验）、导入方式与是否只预览。
+ * 只预览时不需要方式（后台把合并与覆盖两种结果都算出来）；正式导入必须明确选择 merge 或 replace。
+ */
+export function parseReadingDataImport(message) {
+  const dryRun = message?.dryRun === true;
+  if (message?.dryRun !== undefined && typeof message.dryRun !== 'boolean') throw new Error(M('无效的导入请求。','Invalid import request.'));
+  if (typeof message?.text !== 'string' || !message.text.length || message.text.length > MAX_BACKUP_TEXT) throw new Error(M('备份文件为空或太大。','The backup file is empty or too large.'));
+  if (!dryRun && !['merge', 'replace'].includes(message?.mode)) throw new Error(M('请选择合并或覆盖。','Choose merge or replace.'));
+  return {text: message.text, dryRun, mode: dryRun ? null : message.mode};
 }
 
 /** PASSAGE_TRANSLATE 载荷：段落翻译请求编号（与 gloss.mjs IDENTIFIER 一致）。 */

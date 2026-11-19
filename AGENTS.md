@@ -10,7 +10,7 @@
 |---|---|
 | `npm run build` | Vite 开发构建 → `dist/extension/`（manifest 注入固定 key，供 chrome://extensions 加载） |
 | `npm run build:release` | 生产构建（minify、无 key） |
-| `node tools/package-release.mjs` | 发布打包：在 `build:release` 之后运行，按白名单生成 `dist/release/roamcat-<版本>-extension.zip` 与 `SHA256SUMS`（只打包、不上传） |
+| `node tools/package-release.mjs` | 发布打包：在 `build:release` 之后运行，按白名单生成 `dist/release/roamcat-<版本>-extension.zip` 与 `SHA256SUMS`（包内外层目录固定为 `roamcat/`，原位覆盖升级时扩展 ID 不变；只打包、不上传） |
 | `npm run build:watch` | `tools/watch-build.mjs` 监听 src/、扩展源码、build/ 与根配置的增删改，合并保存并串行执行完整开发构建（先 content-ui 后页面与源码拷贝），失败后继续监听；忽略自身生成的 content-ui.js，退出时关闭监听 |
 | `npm run gen:i18n` | 由 `extension/i18n.js` 生成内容脚本专用的瘦身词典 `extension/i18n-content.js`（改了网页侧文案或网页侧脚本新用了别的命名空间后必须重跑；`i18n-content.test.mjs` 拦截漂移） |
 | `npm run verify:all` | 一键跑全部门禁（`tools/run-gates.mjs`）：静态检查（单测/模块图/字典/死代码）失败即停 → 构建一次 → 浏览器门禁 → 生产构建门禁，打印汇总表，日志写 `preview/gates/logs/`、汇总写 `preview/gates/summary.json`；`-- --quick` 跳过站点与生产构建门禁且性能门禁不等休眠，`-- --only=video,livechat` / `-- --skip=sites`，`-- --jobs=2` 浏览器门禁两路并行，`-- --keep-going` 静态失败也继续 |

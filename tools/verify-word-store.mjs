@@ -3,7 +3,8 @@
  * 主要内容：经 chrome.storage.local 写入某种存储布局后 chrome.runtime.reload()，让后台按这份布局冷启动，再用
  *   STATE_GET / READING_DATA_EXPORT / HISTORY_RULE_SET / HISTORY_CLEAR / MEMORY_CLEAR 断言：全新配置直接是数据版本 6；
  *   v5 整份数组 3000 词迁成拆分键且存储体积不翻倍；迁到一半的布局接着搬、不重复；改一个词只写这一个键；
- *   清空浏览历史保留词档案；清空阅读记录删净词键、清单与旧数组残留；更高数据版本拒绝运行且不碰词档案。
+ *   清空浏览历史保留词档案；导出 → 清空 → 导入（READING_DATA_IMPORT）：预览不写、覆盖导入按原顺序恢复词档案与设置、
+ *   合并同一份备份不重写任何词；清空阅读记录删净词键、清单与旧数组残留；更高数据版本拒绝运行且不碰词档案。
  * 模块边界：使用 tools/lib/ego.mjs 的独立 ego lite（临时配置里开启开发者模式才能重载扩展），不调用模型、不访问外网；
  *   要求先构建，报告写 preview/gates/storage.json。
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -162,6 +163,36 @@ try {
     assert.ok(value.picked['w-42']);
     assert.equal(await exported(), WORDS);
     return {ids: value.ids};
+  });
+
+  await gate.check(`导出 → 清空 → 导入：预览不写入，覆盖导入后 ${WORDS} 词按原顺序回来、术语表与查词键回来；再合并同一份备份不重写任何词`, async () => {
+    data(await send('STATE_PATCH', {patch: {customTerms: [{term: 'latency', translation: '延迟', domain: 'tech'}], lookupKey: 'F'}}));
+    const backup = JSON.stringify(data(await send('READING_DATA_EXPORT')));
+    assert.deepEqual(data(await send('MEMORY_CLEAR')), {cleared: true});
+    data(await send('STATE_PATCH', {patch: {customTerms: [], lookupKey: 'D'}}));
+    const preview = data(await send('READING_DATA_IMPORT', {text: backup, dryRun: true}));
+    assert.deepEqual({merge: preview.merge.words.added, replace: preview.replace.words.total}, {merge: WORDS, replace: WORDS});
+    assert.equal((await snapshot()).ids, 0, '只预览不写');
+    const imported = data(await send('READING_DATA_IMPORT', {text: backup, mode: 'replace'}));
+    assert.equal(imported.words.total, WORDS);
+    const value = await snapshot(['w-42']);
+    assert.deepEqual({ids: value.ids, unique: value.unique, inOrder: value.inOrder, wordKeys: value.wordKeys, legacy: value.legacy},
+      {ids: WORDS, unique: WORDS, inOrder: true, wordKeys: WORDS, legacy: false});
+    assert.equal(value.picked['w-42']?.term, 'term42');
+    const settings = (await state()).settings;
+    assert.deepEqual(settings.customTerms, [{term: 'latency', translation: '延迟', domain: 'tech'}]);
+    assert.equal(settings.lookupKey, 'F');
+    await control.evaluate(() => {
+      window.importGateKeys = [];
+      chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local') window.importGateKeys.push(...Object.keys(changes)); });
+    });
+    const merged = data(await send('READING_DATA_IMPORT', {text: backup, mode: 'merge'}));
+    assert.equal(merged.words.unchanged, WORDS);
+    await state(); // 再走一轮消息，让同一事务之后的写入事件都送到
+    const written = (await control.evaluate(() => window.importGateKeys)).filter(key => key === 'wordIds' || key === 'words' || key.startsWith('word:'));
+    assert.deepEqual(written, [], '合并同一份备份不应重写任何词');
+    assert.equal((await state()).dataProblem || '', '');
+    return {backupChars: backup.length, unchanged: merged.words.unchanged};
   });
 
   await gate.check('清空阅读记录删净词键、清单与没迁完的旧数组残留，数据版本不变、后台照常可用', async () => {

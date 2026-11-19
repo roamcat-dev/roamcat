@@ -126,7 +126,9 @@
 
 需要 **Chrome 或 Edge 125+**。
 
-**方式 A：Release 安装包。** 从 [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) 下载 `roamcat-0.10.1-extension.zip` 并解压。打开 `chrome://extensions`（或 `edge://extensions`），开启**开发者模式**，点**加载已解压的扩展**，选择解压出的 **`roamcat-0.10.1/extension`** 文件夹。要用订阅连接器，在包含 `roamcat-0.10.1/` 的目录里运行 `node roamcat-0.10.1/connector/install.mjs`（需要 Node.js 20+）；它会按这个文件夹算出扩展 ID，移动文件夹后要重新运行。
+**方式 A：Release 安装包。** 从 [Releases](https://github.com/roamcat-dev/roamcat/releases/latest) 下载 `roamcat-0.10.1-extension.zip` 并解压。打开 `chrome://extensions`（或 `edge://extensions`），开启**开发者模式**，点**加载已解压的扩展**，选择解压出的 **`roamcat/extension`** 文件夹。要用订阅连接器，在包含 `roamcat/` 的目录里运行 `node roamcat/connector/install.mjs`（需要 Node.js 20+）；它会按这个文件夹算出扩展 ID，移动文件夹后要重新运行。
+
+**升级 Release 安装包**：把新版安装包解压到原来的位置、覆盖 `roamcat` 文件夹里的同名文件，再到扩展管理页点「重新加载」。文件夹位置不变，扩展 ID 就不变，词档案和设置都还在；用订阅连接器的话再运行一次上面的安装命令。从文件夹名带版本号的旧安装包（例如 `roamcat-0.10.0/`）升级时，把新版 `roamcat/` 里的文件复制进原来的文件夹即可；已经加载了新文件夹的，在旧扩展的设置 → 数据与隐私里导出词档案，再在新扩展里「导入备份」（旧版导出的只有词档案，阅读偏好要重新调一下）。
 
 **方式 B：从源码构建**（需要 Node.js 22.13+；Node 24 已验证）：
 
@@ -156,9 +158,10 @@ node roamcat-0.0.1/connector/install.mjs --extension-id afpeggkplomdjjiemgajjgca
 ## 🔒 本地优先的边界
 
 - 阅读记录默认关闭且按站授权，无痕页面不采集；API Key 只存在 `chrome.storage.local`。
-- 密钥不进内容脚本、诊断日志或连接器；内容脚本只能使用 82 种消息中的 **38 种白名单类型**。
+- 密钥不进内容脚本、诊断日志或连接器；内容脚本只能使用 83 种消息中的 **38 种白名单类型**。
 - 模型输出全部经结构化校验（`gloss.mjs`）才进入界面；自定义 API 地址强制 HTTPS（仅本机回环允许 HTTP）。
 - 页面文本只在你主动调用模型功能时离开本机，直达你配置的服务商。完整说明见[隐私政策](roamcat-0.0.1/PRIVACY.md)。
+- 词档案、术语表、网站规则和阅读偏好可在设置 → 数据与隐私导出成备份文件，换电脑或重装后再导入（合并或覆盖）；备份不含模型服务和任何密钥。
 
 ## ⚖️ 与同类工具的对比
 
@@ -255,7 +258,7 @@ node roamcat-0.0.1/connector/install.mjs --extension-id afpeggkplomdjjiemgajjgca
 │   · floating-pet*.js 伴读猫 · auto-start.js 自动开启                   │
 ├────────────────────────────────────────────────────────────────────────┤
 │ Service Worker：background.js（ES module，无状态）                       │
-│   82 种消息路由 · 设置校验与迁移 · 缓存 / 并发 / 看门狗 · 订阅端口          │
+│   83 种消息路由 · 设置校验与迁移 · 缓存 / 并发 / 看门狗 · 订阅端口          │
 ├────────────────────────────────────────────────────────────────────────┤
 │ 扩展页面：popup / options / welcome / reader                            │
 │   src/ 下的 Lit 应用，经 Vite 构建到 dist/extension/ui/                   │
@@ -269,7 +272,7 @@ node roamcat-0.0.1/connector/install.mjs --extension-id afpeggkplomdjjiemgajjgca
 </details>
 
 - **信任边界**——扩展页（可信）→ 内容脚本（38 种白名单消息）→ 模型输出（校验后才进界面）→ 网页 DOM（只以数据身份进入提示词）。
-- **消息协议唯一事实源**——`extension/message-protocol.js` 登记全部 82 种消息与载荷解析器，契约测试保证路由表同步。
+- **消息协议唯一事实源**——`extension/message-protocol.js` 登记全部 83 种消息与载荷解析器，契约测试保证路由表同步。
 - **唯一的双语运行时**——`extension/i18n.js` 收录全部中英对齐的界面文案，扩展页与 Service Worker 共用；内容脚本加载由它生成的 `i18n-content.js`，运行时相同，词典只留网页侧用到的命名空间。
 - **无状态 Service Worker**——跨调用状态落在 `chrome.storage` 与 IndexedDB；写操作串行化，长操作带看门狗。
 

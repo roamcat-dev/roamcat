@@ -2,9 +2,12 @@
  * @file tools/package-release.mjs
  * 文件职责：把 `npm run build:release` 的产物打成 GitHub Release 安装包，按 SPEC 第 13 节的白名单组织：
  *   roamcat-0.0.1/{extension/, connector/, README.md, LICENSE, NOTICE.txt}，并生成 SHA256SUMS。
- * 主要内容：校验 dist/extension 是发布构建（manifest 不带开发 key）；复制到 dist/release/roamcat-<版本>/；
+ * 主要内容：校验 dist/extension 是发布构建（manifest 不带开发 key）；复制到 dist/release/roamcat/；
  *   用标准 zip（deflate）写出 dist/release/roamcat-<版本>-extension.zip——旧包曾是改了扩展名的 tar，
  *   双击无法解压；最后写 SHA256SUMS。
+ *   包内外层目录固定为 RELEASE_FOLDER（roamcat/，不带版本号）：未打包扩展的 ID 由文件夹路径算出，
+ *   新版解压覆盖到同一位置时路径不变，扩展 ID 与本机的词档案、设置都不变；只有安装包文件名带版本号。
+ *   README 里的安装与升级说明由 tools/unit/docs-facts.test.mjs 对照这个常量。
  * 用法：npm run build:release && node tools/package-release.mjs
  * 模块边界：只读 dist/extension 与 roamcat-0.0.1/ 下的白名单文件，只写 dist/release/；不上传、不发布。
  *
@@ -25,9 +28,10 @@ const manifest = JSON.parse(readFileSync(join(BUILD, 'manifest.json'), 'utf8'));
 if ('key' in manifest) throw new Error('dist/extension 是开发构建（带固定 key），请先运行 npm run build:release');
 
 const version = manifest.version;
-const name = `roamcat-${version}`;
+// 只是常量，不要 export：本脚本顶层就会打包，测试从源码文本里读它，不 import。
+const RELEASE_FOLDER = 'roamcat';
 const OUT = join(ROOT, 'dist', 'release');
-const stage = join(OUT, name);
+const stage = join(OUT, RELEASE_FOLDER);
 rmSync(OUT, {recursive: true, force: true});
 mkdirSync(stage, {recursive: true});
 cpSync(BUILD, join(stage, 'extension'), {recursive: true});
@@ -43,7 +47,7 @@ const walk = dir => {
   }
 };
 walk(stage);
-const zipName = `${name}-extension.zip`;
+const zipName = `roamcat-${version}-extension.zip`;
 const zip = zipSync(entries, {mtime: new Date()});
 writeFileSync(join(OUT, zipName), zip);
 const sha = createHash('sha256').update(zip).digest('hex');

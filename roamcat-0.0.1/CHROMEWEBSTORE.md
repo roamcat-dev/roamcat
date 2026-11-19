@@ -11,7 +11,7 @@
 | 项目 | 当前状态与待办 |
 |------|----------------|
 | 开发者账号 | 需在 Chrome Web Store 开发者后台注册并支付一次性注册费，启用 Google 两步验证，填写发布者名称并验证联系邮箱；费用与其他账号核验以后台为准。 |
-| 商店 ZIP | **现有 `tools/package-release.mjs` 产物是 GitHub Release 安装包，不能直接上传商店。** 它带有 `roamcat-<版本>/extension/` 外层目录及连接器。商店 ZIP 必须以扩展文件为根，直接包含 `manifest.json`、`background.js`、`ui/` 等；连接器继续单独提供下载。 |
+| 商店 ZIP | **现有 `tools/package-release.mjs` 产物是 GitHub Release 安装包，不能直接上传商店。** 它带有 `roamcat/extension/` 外层目录及连接器。商店 ZIP 必须以扩展文件为根，直接包含 `manifest.json`、`background.js`、`ui/` 等；连接器继续单独提供下载。 |
 | 商店素材 | 128×128 PNG 图标已有；至少 1 张 1280×800 或 640×400 实际界面截图、**440×280 小宣传图均为必需**，现有候选截图须重新核对版本与尺寸。 |
 | 权限披露 | 当前 Manifest 使用必需的 `http://*/*` 与 `https://*/*`，**没有 `optional_host_permissions`**。网站规则是功能开关，不能描述成浏览器已限制访问范围的可选权限。保留全站权限时须说明任意网站阅读、自动开启、伴读猫和用户自定义模型端点的需要；如改为按站授权，必须另行修改并验证实现。 |
 | 隐私披露 | 已有公开隐私政策。发送页面/文档文本、字幕、公开聊天和手动听写音频均应如实披露；本机处理邮箱、API Key 与可选阅读活动也不能仅以“无自有服务器”为由忽略。提交前还需核对 API Key 的本机明文保存方式与官方安全处理要求，不能把本次文档核对视为安全审核通过。 |
@@ -82,7 +82,7 @@ Roam the English web like a cat: bilingual page translation plus reading aids wi
 4. 按需调整提示密度、查词方式、显示样式与网站规则；订阅连接器需要用户另行安装
 
 隐私与权限
-• 阅读记录、词档案与摘要默认只保存在本机，可随时导出或清理
+• 阅读记录、词档案与摘要默认只保存在本机，可随时导出或清理；词档案、术语表与阅读偏好可导出成备份，换电脑后再导入
 • 需要模型生成帮助时，目标词句与有限上下文会发送给你自己选择的服务；扩展不设中转服务器，
   不收集任何分析或遥测数据
 • API Key 只保存在浏览器本机存储中
@@ -124,7 +124,7 @@ How to use
 4. Adjust hint density, lookup style and site rules in Settings; subscription connectors require a separate local installation
 
 Privacy
-• Reading records, word notes and digests stay on your device and can be exported or cleared anytime
+• Reading records, word notes and digests stay on your device and can be exported or cleared anytime; your word profile, glossary and reading preferences can be backed up and imported on another computer
 • When a model is needed, only the target words and limited context are sent to the service you choose;
   there is no relay server, and no analytics or telemetry
 • API keys are stored only in your browser's local storage
@@ -174,7 +174,7 @@ Chinese (Simplified)
 |------------|------|---------------|
 | `activeTab` | permissions | Allows reading assistance, selected-text help, and page translation on the current tab after a toolbar action, keyboard shortcut, or context-menu action. |
 | `scripting` | permissions | Loads the reading, translation, summary, and companion UI into permitted pages as features are activated. Reading extraction excludes form inputs and hidden content. |
-| `storage` | permissions | Saves model settings, API credentials, word profiles, optional reading records, and diagnostics on the device. Users can clear or export supported data. No Chrome account sync is used. |
+| `storage` | permissions | Saves model settings, API credentials, word profiles, optional reading records, and diagnostics on the device. Users can clear or export supported data, and import a backup file they exported earlier (word profile, glossary, site rules and reading preferences; never model services or credentials). No Chrome account sync is used. |
 | `nativeMessaging` | permissions | Connects to an optional, separately installed program on the user's computer to use the user's signed-in CLI services and retrieve the local service pairing token. No publisher-operated relay is used. |
 | `offscreen` | permissions | Hosts the bundled offline topic-recognition worker. Its topic-classifier scripts, WebAssembly runtime, and model are packaged with the extension; remote classifier downloads are disabled. The same document runs the browser Translator API with prepared language packs; downloading those browser-managed packs requires a click in settings. |
 | `contextMenus` | permissions | Adds selected-text help, reading assistance, and page translation actions to the right-click menu. |

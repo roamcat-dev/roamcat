@@ -78,7 +78,7 @@ RoamCat 是一个面向英语阅读的 Chrome / Edge 扩展，按双模式组织
 
 免构建安装包 `roamcat-<版本>-extension.zip` 附在 [GitHub Releases](https://github.com/roamcat-dev/roamcat/releases) 中：
 
-1. 从 GitHub Releases 下载安装包（附 `SHA256SUMS` 可校验）并解压，得到与安装包版本一致的 `roamcat-<版本>/` 目录，其中包含 `extension/`（`npm run build:release` 产物）、`connector/`（订阅连接器）、`README.md`、`LICENSE` 与 `NOTICE.txt`。
+1. 从 GitHub Releases 下载安装包（附 `SHA256SUMS` 可校验）并解压，得到 `roamcat/` 目录（文件夹名固定、不带版本号，只有安装包文件名带版本号），其中包含 `extension/`（`npm run build:release` 产物）、`connector/`（订阅连接器）、`README.md`、`LICENSE` 与 `NOTICE.txt`。
 2. 打开扩展管理页：
    - Chrome：`chrome://extensions`
    - Edge：`edge://extensions`
@@ -87,7 +87,7 @@ RoamCat 是一个面向英语阅读的 Chrome / Edge 扩展，按双模式组织
 
 Release 包已经包含运行所需文件和本地模型，不包含源码开发依赖；使用 API 模式时无需安装 npm 依赖，也无需构建。
 
-请把解压后的目录放在一个长期不变的位置。未打包扩展的 ID 与目录位置相关：移动目录可能改变扩展 ID，并使本机连接器失效。升级时应保持现有目录路径不变，在原位置替换版本内容，然后在扩展管理页重新加载。
+请把解压后的 `roamcat/` 目录放在一个长期不变的位置。未打包扩展的 ID 由目录位置算出：移动目录会换一个扩展 ID，旧 ID 名下的词档案和设置不会跟过来，本机连接器也要重新安装。升级时把新版安装包解压到同一位置、覆盖 `roamcat/` 里的同名文件，然后在扩展管理页重新加载；目录不变，扩展 ID 和本机数据都不变。从文件夹名带版本号的旧安装包（例如 `roamcat-0.10.0/`）升级时，把新版 `roamcat/` 里的文件复制进原来的目录；已经换了目录的，可以在旧扩展里导出词档案，再到新扩展的「数据与隐私 → 导入备份」导入。
 
 ## 配置模型服务
 
@@ -121,7 +121,7 @@ Windows 也可用：
 irm https://x.ai/cli/install.ps1 | iex
 ```
 
-然后在 `roamcat-0.0.1/` 目录（仓库中的目录；Release 安装包里是解压出的 `roamcat-<版本>/`）下运行安装程序（从仓库根目录运行时写成 `node roamcat-0.0.1/connector/install.mjs …`）。把下面的占位符换成扩展管理页显示的**实际扩展 ID**——从源码构建的 `dist/extension` 固定为 `afpeggkplomdjjiemgajjgcajieincng`：
+然后在 `roamcat-0.0.1/` 目录（仓库中的目录；Release 安装包里是解压出的 `roamcat/`）下运行安装程序（从仓库根目录运行时写成 `node roamcat-0.0.1/connector/install.mjs …`）。把下面的占位符换成扩展管理页显示的**实际扩展 ID**——从源码构建的 `dist/extension` 固定为 `afpeggkplomdjjiemgajjgcajieincng`：
 
 ```sh
 node connector/install.mjs --extension-id <YOUR_ACTUAL_EXTENSION_ID>
@@ -155,7 +155,7 @@ irm https://antigravity.google/cli/install.ps1 | iex
 
 先在终端运行 `agy`，按提示用你的 Google 账号（Google AI Pro / Ultra 订阅）完成登录。登录态保存在系统钥匙串中，连接器直接复用，不在扩展内走网页登录。
 
-然后在 `roamcat-0.0.1/` 目录（仓库中的目录；Release 安装包里是解压出的 `roamcat-<版本>/`）下运行安装程序（从仓库根目录运行时写成 `node roamcat-0.0.1/connector/install.mjs …`）。把下面的占位符换成扩展管理页显示的**实际扩展 ID**——从源码构建的 `dist/extension` 固定为 `afpeggkplomdjjiemgajjgcajieincng`：
+然后在 `roamcat-0.0.1/` 目录（仓库中的目录；Release 安装包里是解压出的 `roamcat/`）下运行安装程序（从仓库根目录运行时写成 `node roamcat-0.0.1/connector/install.mjs …`）。把下面的占位符换成扩展管理页显示的**实际扩展 ID**——从源码构建的 `dist/extension` 固定为 `afpeggkplomdjjiemgajjgcajieincng`：
 
 ```sh
 node connector/install.mjs --extension-id <YOUR_ACTUAL_EXTENSION_ID>
@@ -179,7 +179,7 @@ node connector/install.mjs --extension-id <YOUR_ACTUAL_EXTENSION_ID>
 npm install -g @openai/codex
 ```
 
-然后在 `roamcat-0.0.1/` 目录（仓库中的目录；Release 安装包里是解压出的 `roamcat-<版本>/`）下运行安装程序（从仓库根目录运行时写成 `node roamcat-0.0.1/connector/install.mjs …`）。把下面的占位符换成扩展管理页显示的**实际扩展 ID**——从源码构建的 `dist/extension` 固定为 `afpeggkplomdjjiemgajjgcajieincng`：
+然后在 `roamcat-0.0.1/` 目录（仓库中的目录；Release 安装包里是解压出的 `roamcat/`）下运行安装程序（从仓库根目录运行时写成 `node roamcat-0.0.1/connector/install.mjs …`）。把下面的占位符换成扩展管理页显示的**实际扩展 ID**——从源码构建的 `dist/extension` 固定为 `afpeggkplomdjjiemgajjgcajieincng`：
 
 ```sh
 node connector/install.mjs --extension-id <YOUR_ACTUAL_EXTENSION_ID>
@@ -219,7 +219,7 @@ ChatGPT 订阅是否包含可用 Codex 权益、可选模型和调用额度由 O
 - “阅读记录”需要明确开启并添加允许的网站；关闭采集不会自动删除已有记录。
 - 阅读摘要和个性化分析是阅读记录之上的独立开关，没有授权时不会运行。
 - 预备解释和有限上下文缓存只保留在当前浏览器会话；个人词档案不保存原句、标题或来源网址。
-- 无痕页面不采集阅读记录。可在“数据与隐私”中导出或清理本机数据。
+- 无痕页面不采集阅读记录。可在“数据与隐私”中导出、导入或清理本机数据；备份文件含词档案、术语表、网站规则和阅读偏好，不含模型服务与任何密钥，导入时可选合并或覆盖。
 
 ## 从源码开发
 
@@ -249,7 +249,7 @@ npm run verify:build  # 构建产物门禁 + 浏览器实际加载冒烟
 - `build/`：构建期脚本与 dev 扩展 key。
 - `tools/`：模块图门禁、单元测试、构建产物门禁、浏览器回归脚本。
 
-词频数据与本地模型的生成脚本目前在维护者的源码工作区中，尚未纳入本仓库。Release 打包工具为 `tools/package-release.mjs`，在 `npm run build:release` 后运行，生成 `dist/release/roamcat-<版本>-extension.zip` 与 `SHA256SUMS`。ZIP 内的顶层目录为 `roamcat-<版本>/`（`extension/` 为发布构建产物，另含 `connector/` 与说明/许可文件）。
+词频数据与本地模型的生成脚本目前在维护者的源码工作区中，尚未纳入本仓库。Release 打包工具为 `tools/package-release.mjs`，在 `npm run build:release` 后运行，生成 `dist/release/roamcat-<版本>-extension.zip` 与 `SHA256SUMS`。ZIP 内的顶层目录固定为 `roamcat/`，不带版本号（`extension/` 为发布构建产物，另含 `connector/` 与说明/许可文件），新版解压覆盖到同一位置时扩展 ID 不变。
 
 ## 许可与第三方材料
 
